@@ -1,5 +1,6 @@
 ﻿namespace samicpp.Http;
 
+using System;
 // public class Class1
 // {
 //     private SemaphoreSlim readLock = new(1, 1);
@@ -12,8 +13,12 @@
 // }
 public abstract class Helper
 {
+    public int somedata { get; set { field = value; Console.WriteLine($"property set to {value}"); } }
     public void Call()
     {
-        System.Console.WriteLine("ivnoke call");
+        Console.WriteLine("ivnoke call");
+        SubFunc();
     }
+
+    public abstract void SubFunc();
 }
