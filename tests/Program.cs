@@ -4,7 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Samicpp.Http.Debug;
 using Xunit;
-using Samicpp.Http.Http1;
+using Samicpp.Http.Http2;
 
 
 public class Tests
@@ -19,7 +19,13 @@ public class Tests
     public void test2()
     {
         FakeHttpSocket sock = new();
-        
+
+    }
+
+    [Fact]
+    public void frameTest()
+    {
+        Http2Frame frame = Http2Frame.Parse([0, 0, 1, 0, 0, 0, 1, 0, 1, 97,]);
     }
 
 

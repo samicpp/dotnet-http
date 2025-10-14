@@ -1,12 +1,12 @@
 namespace Samicpp.Http.WebSocket;
 
-public struct WebSocketFrame
+public readonly struct WebSocketFrame
 {
-    public static WebSocketFrame Parse(byte[] bytes)
+    public static WebSocketFrame Parse(Span<byte> bytes)
     {
         return new();
     }
-    public static byte[] Create()
+    public static List<byte> Create()
     {
         return [];
     }
