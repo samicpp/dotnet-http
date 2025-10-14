@@ -85,7 +85,7 @@ public abstract class ANetSocket : IAsyncSocket, ISyncSocket, IDisposable
         return bytes;
     }
 
-    /*private static bool EndsWith(List<byte> source, byte[] stop)
+    private static bool EndsWith(List<byte> source, byte[] stop)
     {
         int start = source.Count - stop.Length;
         if (start < 0) return false;
@@ -115,6 +115,25 @@ public abstract class ANetSocket : IAsyncSocket, ISyncSocket, IDisposable
         }
 
         return total;
-    }*/
+    }
+    public async Task<List<byte>> ReadUntilAsync(byte[] stop)
+    {
+        List<byte> total = [];
+        byte[] buff = new byte[1];
+
+        while (true)
+        {
+            int s = await ReadAsync(buff);
+
+            if (s <= 0) throw new HttpException.ConnectionClosed(null);
+
+            total.AddRange(buff[..s]);
+            if (total.Count < stop.Length) continue;
+
+            if (EndsWith(total, stop)) break;
+        }
+
+        return total;
+    }
     
 }

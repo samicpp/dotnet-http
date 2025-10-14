@@ -103,7 +103,7 @@ public class Tests
 
                 while (true)
                 {
-                    var data = await socket.ReadAllAsync();
+                    var data = await socket.ReadUntilAsync([(byte)'.']);
                     var text = Encoding.UTF8.GetString([.. data]);
 
                     Console.WriteLine($"received message \e[36m{text.Trim()}\e[0m");
