@@ -1,17 +1,11 @@
-namespace samicpp.tests;
+namespace Samicpp.Tests;
 
 using System;
-using samicpp.Http;
+using System.Threading.Tasks;
+using Samicpp.Http.Debug;
 using Xunit;
+using Samicpp.Http.Http1;
 
-
-class Something: Helper
-{
-    override public void SubFunc()
-    {
-        Console.WriteLine("crazy");
-    }
-}
 
 public class Tests
 {
@@ -24,11 +18,16 @@ public class Tests
     [Fact]
     public void test2()
     {
-        Something some=new();
-
-        some.Call();
-        some.somedata = 1;
+        FakeHttpSocket sock = new();
         
+    }
+
+
+    [Fact]
+    [Trait("Category", "Network")]
+    public async Task TcpEchoServer()
+    {
+        await Task.Delay(0);
     }
 
 }
