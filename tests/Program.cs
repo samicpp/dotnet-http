@@ -23,9 +23,15 @@ public class Tests
     }
 
     [Fact]
-    public void frameTest()
+    public void frameParseTest()
     {
-        Http2Frame frame = Http2Frame.Parse([0, 0, 1, 0, 0, 0, 1, 0, 1, 97,]);
+        Http2Frame frame = Http2Frame.Parse([0, 0, 14, 0, 0, 0, 1, 0, 49, 5, 0, 0, 0, 1, 5, 97, 98, 99, 1, 2, 3, 4, 5,]);
+        Console.WriteLine(frame.payload);
+        Console.WriteLine(frame.priority);
+        Console.WriteLine(frame.padding);
+        Console.Write("frame = [ ");
+        foreach (byte b in frame.ToBytes()) Console.Write($"{b}, ");
+        Console.WriteLine("]");
     }
 
 

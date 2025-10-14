@@ -19,3 +19,7 @@ interface IAsyncSocket
 {
 
 }
+interface ISyncSocket
+{
+
+}

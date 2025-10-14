@@ -67,11 +67,11 @@ public readonly struct Http2Frame(
             }
 
             Range priority = 0..0;
-            if ((flags & 32) != 0) priority = offset..(offset + 5);
+            if ((flags & 32) != 0) priority = (9 + offset)..(9 + offset + 5);
 
-            Range payload = (9 + offset)..(length - padLength);
+            Range payload = (9 + offset)..(9 + length - padLength);
 
-            Range padding = (length - padLength)..length;
+            Range padding = (9 + length - padLength)..(9 + length);
 
             var type = opcode switch
             {
