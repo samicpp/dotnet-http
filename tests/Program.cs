@@ -2,7 +2,7 @@ namespace Samicpp.Tests;
 
 using System;
 using System.Threading.Tasks;
-using Samicpp.Http.Debug;
+// using Samicpp.Http.Debug;
 using Xunit;
 using Samicpp.Http;
 using Samicpp.Http.Http2;
@@ -10,6 +10,7 @@ using System.Net.Sockets;
 using System.Net;
 using System.Text;
 using System.Runtime.InteropServices;
+using Samicpp.Http.Http1;
 
 public class Tests
 {
@@ -85,6 +86,7 @@ public class Tests
     [Trait("Category", "Network")]
     public async Task TcpEchoServer()
     {
+        return;
         IPEndPoint address = new(IPAddress.Parse("0.0.0.0"), 1024);
         using Socket listener = new(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
@@ -112,6 +114,45 @@ public class Tests
                     // Console.ResetColor();
                     await socket.WriteAsync(Encoding.UTF8.GetBytes($"<| {text.Trim()} |>\n"));
                 }
+            });
+        }
+    }
+
+    [Fact]
+    [Trait("Catogory", "Network")]
+    public async Task HttpEchoServer()
+    {
+        IPEndPoint address = new(IPAddress.Parse("0.0.0.0"), 2048);
+        using Socket listener = new(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+        listener.Bind(address);
+        listener.Listen(10);
+
+        Console.WriteLine("listening on " + address);
+
+        while (true)
+        {
+            var shandler = await listener.AcceptAsync();
+            Console.WriteLine($"\e[32m{shandler.RemoteEndPoint}\e[0m");
+
+            var _ = Task.Run(async () =>
+            {
+                using NetworkStream stream = new(shandler, ownsSocket: true);
+                using Http1Socket socket = new(new TcpSocket(stream));
+
+                Console.WriteLine("continuing");
+
+                var data = await socket.ReadClientAsync();
+                while (!data.BodyComplete) data = await socket.ReadClientAsync();
+
+                Console.WriteLine(data);
+                Console.WriteLine($"received {data.Body.Count} bytes");
+
+                var text = Encoding.UTF8.GetString([.. data.Body]);
+
+                Console.WriteLine($"received request with body[{text.Length}] \e[36m{text.Trim()}\e[0m");
+                await socket.CloseAsync(Encoding.UTF8.GetBytes($"<| {text.Trim()} |>\n"));
+                // await Task.Delay(100);
             });
         }
     }

@@ -124,7 +124,7 @@ public class Http1Socket(ANetSocket socket) : ISyncHttpSocket, IAsyncHttpSocket,
 
             foreach (var header in lines[1..])
             {
-                if (header == null) continue;
+                if (string.IsNullOrWhiteSpace(header)) continue;
                 var hv = header.Split(":", 2);
                 var h = hv[0].Trim().ToLower();
                 var v = hv[1].Trim();
@@ -173,7 +173,7 @@ public class Http1Socket(ANetSocket socket) : ISyncHttpSocket, IAsyncHttpSocket,
         if (!HeadSent)
         {
             string text = $"HTTP/1.1 {Status} {StatusMessage}\r\n";
-            foreach (var (h, v) in headers) text += $"{h}: {v}\r\n";
+            foreach (var (h, vs) in headers) foreach (var v in vs) text += $"{h}: {v}\r\n";
             text += "\r\n";
             var buff = Encoding.UTF8.GetBytes(text);
             socket.Write(buff);
@@ -185,7 +185,7 @@ public class Http1Socket(ANetSocket socket) : ISyncHttpSocket, IAsyncHttpSocket,
         if (!HeadSent)
         {
             string text = $"HTTP/1.1 {Status} {StatusMessage}\r\n";
-            foreach (var (h, v) in headers) text += $"{h}: {v}\r\n";
+            foreach (var (h, vs) in headers) foreach (var v in vs) text += $"{h}: {v}\r\n";
             text += "\r\n";
             var buff = Encoding.UTF8.GetBytes(text);
             await socket.WriteAsync(buff);
