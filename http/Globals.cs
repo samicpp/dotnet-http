@@ -5,22 +5,28 @@ public class HttpException(string? message = null, Exception? source = null) : E
     public readonly Exception? source = source;
     public sealed class ConnectionClosed(string? message) : HttpException(message);
 }
-interface IHttpSocket
+public interface IHttpSocket
 {
-
+    IHttpClient Client { get; }
 }
 
-interface IHttpClient
+public interface IHttpClient
 {
-
+    public Dictionary<string, List<string>> Headers { get; }
+    public string Host { get; }
+    public string Method { get; }
+    public string Path { get; }
+    public string Version { get; }
+    public bool HeadersComplete { get; }
+    public bool BodyComplete { get; }
 }
 
-interface ISocket
+public interface ISocket
 {
     bool CanRead { get; }
     bool CanWrite { get; }
 }
-interface IAsyncSocket : ISocket
+public interface IAsyncSocket : ISocket
 {
     Task FlushAsync();
     Task DisposeAsync();
@@ -29,7 +35,7 @@ interface IAsyncSocket : ISocket
     Task WriteAsync(Memory<byte> bytes);
     Task WriteAsync(byte[] bytes, int offset, int size);
 }
-interface ISyncSocket : ISocket
+public interface ISyncSocket : ISocket
 {
     void Flush();
     void Close();
