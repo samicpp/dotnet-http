@@ -8,6 +8,30 @@ public class HttpException(string? message = null, Exception? source = null) : E
 public interface IHttpSocket
 {
     IHttpClient Client { get; }
+    bool IsClosed { get; }
+    bool HeadSent { get; }
+    int Status { get; set; }
+    string StatusMessage { get; set; }
+
+    void SetHeader(string name, string value);
+    void AddHeader(string name, string value);
+    List<string> DelHeader(string name);
+}
+interface ISyncHttpSocket : IHttpSocket
+{
+    IHttpClient ReadClient();
+    void Close(string text);
+    void Close(Span<byte> bytes);
+    void Write(string text);
+    void Write(Span<byte> bytes);
+}
+interface IAsyncHttpSocket: IHttpSocket
+{
+    Task<IHttpClient> ReadClientAsync();
+    Task CloseAsync(string text);
+    Task CloseAsync(Memory<byte> bytes);
+    Task WriteAsync(string text);
+    Task WriteAsync(Memory<byte> bytes);
 }
 
 public interface IHttpClient
@@ -17,6 +41,7 @@ public interface IHttpClient
     public string Method { get; }
     public string Path { get; }
     public string Version { get; }
+    public List<byte> Body { get; }
     public bool HeadersComplete { get; }
     public bool BodyComplete { get; }
 }
