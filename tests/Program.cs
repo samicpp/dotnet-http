@@ -11,6 +11,7 @@ using System.Net;
 using System.Text;
 using System.Runtime.InteropServices;
 using Samicpp.Http.Http1;
+using System.Collections.Generic;
 
 public class Tests
 {
@@ -117,7 +118,8 @@ public class Tests
         }
     }
 
-    [Fact(Skip = "wont end")]
+    [Fact]
+    // [Fact(Skip = "wont end")]
     [Trait("Catogory", "Network")]
     public async Task HttpEchoServer()
     {
@@ -143,6 +145,26 @@ public class Tests
 
                 var data = await socket.ReadClientAsync();
                 while (!data.BodyComplete) data = await socket.ReadClientAsync();
+
+                if (data.Headers.TryGetValue("accept-encoding", out List<string> encoding))
+                {
+                    foreach (string s in encoding[0].Split(","))
+                    {
+                        socket.Compression = s switch
+                        {
+                            "gzip" => Compression.Gzip,
+                            "deflate" => Compression.Deflate,
+                            "br" => Compression.Brotli,
+                            _ => Compression.None,
+                        };
+                        if (socket.Compression != Compression.None) break;
+                    }
+                    Console.WriteLine("using compression " + socket.Compression);
+                }
+                else
+                {
+                    Console.WriteLine("no compression");
+                }
 
                 Console.WriteLine(data);
                 Console.WriteLine($"received {data.Body.Count} bytes");

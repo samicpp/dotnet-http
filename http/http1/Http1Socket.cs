@@ -34,6 +34,20 @@ public class Http1Socket(ANetSocket socket) : ISyncHttpSocket, IAsyncHttpSocket,
 
     public int Status { get; set; } = 200;
     public string StatusMessage { get; set; } = "OK";
+    public Compression Compression
+    {
+        get; set
+        {
+            field = value;
+            switch (value)
+            {
+                case Compression.None: headers.Remove("Content-Encoding"); break;
+                case Compression.Gzip: headers["Content-Encoding"] = ["gzip"]; break;
+                case Compression.Deflate: headers["Content-Encoding"] = ["deflate"]; break;
+                case Compression.Brotli: headers["Content-Encoding"] = ["br"]; break;
+            }
+        }
+    }
 
     private Dictionary<string, List<string>> headers = new() { { "Connection", ["close"] } };
     public void SetHeader(string name, string value) => headers[name] = [value];
@@ -195,13 +209,14 @@ public class Http1Socket(ANetSocket socket) : ISyncHttpSocket, IAsyncHttpSocket,
 
 
     public void Close(string text) => Close(Encoding.UTF8.GetBytes(text));
-    public void Close(Span<byte> bytes)
+    public void Close(byte[] bytes)
     {
         if (!IsClosed && !HeadSent)
         {
-            headers["Content-Length"] = [bytes.Length.ToString()];
+            var compressed = Compressor.Compress(this.Compression, bytes);
+            headers["Content-Length"] = [compressed.Length.ToString()];
             SendHead();
-            socket.Write(bytes);
+            socket.Write(compressed);
             IsClosed = true;
         }
         else if (!IsClosed)
@@ -214,16 +229,17 @@ public class Http1Socket(ANetSocket socket) : ISyncHttpSocket, IAsyncHttpSocket,
     }
 
     public async Task CloseAsync(string text) => await CloseAsync(Encoding.UTF8.GetBytes(text));
-    public async Task CloseAsync(Memory<byte> bytes)
+    public async Task CloseAsync(byte[] bytes)
     {
         if (!IsClosed && !HeadSent)
         {
-            headers["Content-Length"] = [bytes.Length.ToString()];
+            var compressed = await Compressor.CompressAsync(this.Compression, bytes);
+            headers["Content-Length"] = [compressed.Length.ToString()];
             await SendHeadAsync();
-            await socket.WriteAsync(bytes);
+            await socket.WriteAsync(compressed);
             IsClosed = true;
         }
-        else
+        else if (!IsClosed)
         {
             // TODO: add support for sending final headers
             byte[] term = [13, 10, 48, 13, 10, 13, 10];
@@ -234,7 +250,7 @@ public class Http1Socket(ANetSocket socket) : ISyncHttpSocket, IAsyncHttpSocket,
     }
 
     public void Write(string text) => Write(Encoding.UTF8.GetBytes(text));
-    public void Write(Span<byte> bytes)
+    public void Write(byte[] bytes)
     {
         if (!IsClosed)
         {
@@ -250,7 +266,7 @@ public class Http1Socket(ANetSocket socket) : ISyncHttpSocket, IAsyncHttpSocket,
     }
 
     public async Task WriteAsync(string text) => await WriteAsync(Encoding.UTF8.GetBytes(text));
-    public async Task WriteAsync(Memory<byte> bytes)
+    public async Task WriteAsync(byte[] bytes)
     {
         if (!IsClosed)
         {

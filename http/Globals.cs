@@ -16,22 +16,23 @@ public interface IHttpSocket
     void SetHeader(string name, string value);
     void AddHeader(string name, string value);
     List<string> DelHeader(string name);
+    Compression Compression { get; set; }
 }
 interface ISyncHttpSocket : IHttpSocket
 {
     IHttpClient ReadClient();
     void Close(string text);
-    void Close(Span<byte> bytes);
+    void Close(byte[] bytes);
     void Write(string text);
-    void Write(Span<byte> bytes);
+    void Write(byte[] bytes);
 }
 interface IAsyncHttpSocket: IHttpSocket
 {
     Task<IHttpClient> ReadClientAsync();
     Task CloseAsync(string text);
-    Task CloseAsync(Memory<byte> bytes);
+    Task CloseAsync(byte[] bytes);
     Task WriteAsync(string text);
-    Task WriteAsync(Memory<byte> bytes);
+    Task WriteAsync(byte[] bytes);
 }
 
 public interface IHttpClient
