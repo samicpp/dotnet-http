@@ -5,7 +5,7 @@ public readonly struct WebSocketFrame(
     bool fin, int rsv, int opcode,
     bool masked, int len,
     ulong ext, Range mask,
-    Range payload
+    Range payload, WebSocketFrameType type
 ) {
     public readonly byte[] raw = raw;
 
@@ -19,6 +19,8 @@ public readonly struct WebSocketFrame(
     public readonly ulong ext = ext;
     public readonly Range mask = mask;
     public readonly Range payload = payload;
+
+    public readonly WebSocketFrameType type = type;
 
     public static List<byte[]> Split(byte[] bytes)
     {
@@ -80,7 +82,13 @@ public readonly struct WebSocketFrame(
         if (ext != 0) payload = start..(start + (int)ext);
         else payload = start..len;
 
-        return new(bytes, fin, rsv, opcode, masked, len, ext, mask, payload);
+        var type = opcode switch
+        {
+            < 10 => (WebSocketFrameType)opcode,
+            _ => WebSocketFrameType.Other,
+        };
+
+        return new(bytes, fin, rsv, opcode, masked, len, ext, mask, payload, type);
     }
     public static byte[] Create(bool fin, byte opcode, Span<byte> payload)
     {
@@ -125,7 +133,7 @@ public readonly struct WebSocketFrame(
     }
 }
 
-enum WebSocketFrameType{
+public enum WebSocketFrameType{
     Continuation,         // 0x0
     Text,                 // 0x1
     Binary,               // 0x2
