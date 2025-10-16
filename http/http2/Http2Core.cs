@@ -40,7 +40,7 @@ public readonly struct Http2Frame(
             int length = (bytes[pos] << 16 | bytes[pos + 1] << 8 | bytes[pos + 2]) + 9;
             byte[] frame = new byte[length];
             bytes[pos..length].CopyTo(frame);
-            frames.Append(frame);
+            frames.Add(frame);
             pos += 9 + length;
         }
 
@@ -92,35 +92,47 @@ public readonly struct Http2Frame(
         }
     }
 
-    public static List<byte> Create(
+    public static byte[] Create(
         int streamID, byte opcode, byte flags, Span<byte> priority, Span<byte> payload, Span<byte> padding
     ){
-        List<byte> raw = []; // can be replaced by byte[]
+        // List<byte> raw = [];
 
         int length = payload.Length;
         if ((flags & 8) != 0) length += padding.Length + 1;
         if ((flags & 32) != 0) length += priority.Length;
+        byte[] raw = new byte[length];
+
+        int offset = 0;
+
+        raw[offset++] = (byte)(length >> 16);
+        raw[offset++] = (byte)(length >> 8);
+        raw[offset++] = (byte)length;
+
+        raw[offset++] = (byte)(streamID >> 24);
+        raw[offset++] = (byte)(streamID >> 16);
+        raw[offset++] = (byte)(streamID >> 8);
+        raw[offset++] = (byte)streamID;
 
 
-        byte[] len = [(byte)(length >> 16), (byte)(length >> 8), (byte)length];
-        byte[] id = [(byte)(streamID >> 24), (byte)(streamID >> 16), (byte)(streamID >> 8), (byte)streamID];
+        if ((flags & 8) != 0) raw[offset++] = (byte)padding.Length;
+        if ((flags & 32) != 0) {
+            priority.CopyTo(raw.AsSpan(offset));
+            offset += priority.Length;
+        }
 
-        raw.AddRange(len);
-        raw.AddRange(id);
-        raw.AddRange(opcode);
-        raw.AddRange(flags);
+        payload.CopyTo(raw.AsSpan(offset));
+        offset += payload.Length;
 
-        if ((flags & 8) != 0) raw.Add((byte)padding.Length);
-        if ((flags & 32) != 0) raw.AddRange(priority);
-
-        raw.AddRange(payload);
-
-        if ((flags & 8) != 0) raw.AddRange(padding);
+        if ((flags & 8) != 0)
+        {
+            padding.CopyTo(raw.AsSpan(offset));
+            // offset += padding.Length;
+        }
 
         return raw;
     }
 
-    public readonly List<byte> ToBytes() => Create(this.streamID, this.opcode, this.flags, this.Priority, this.Payload, this.Padding);
+    public readonly byte[] ToBytes() => Create(streamID, opcode, flags, Priority, Payload, Padding);
 }
 
 public readonly struct Http2Settings(int? headerTableSize, int? enablePush, int? maxConcurrentStreams, int? initialWindowSize, int? maxFrameSize, int? maxHeaderListSize)

@@ -82,11 +82,10 @@ public class Tests
         await Task.Delay(0);
     }*/
 
-    [Fact]
+    [Fact(Skip = "wont end")]
     [Trait("Category", "Network")]
     public async Task TcpEchoServer()
     {
-        return;
         IPEndPoint address = new(IPAddress.Parse("0.0.0.0"), 1024);
         using Socket listener = new(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
