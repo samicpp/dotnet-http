@@ -22,6 +22,20 @@ public readonly struct WebSocketFrame(
 
     public readonly WebSocketFrameType type = type;
 
+    // method instead of getter cause to not confuse users since it induces overhead
+    public readonly byte[] GetPayload()
+    {
+        var pay = raw[payload];
+
+        if (masked)
+        {
+            var key = raw[mask];
+            for (int i = 0; i < pay.Length; i++) pay[i] ^= key[i % 4];
+        }
+
+        return pay;
+    }
+
     public static List<byte[]> Split(byte[] bytes)
     {
         int index = 0;
