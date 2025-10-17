@@ -35,13 +35,20 @@ public readonly struct Http2Frame(
         List<byte[]> frames = [];
 
         int pos = 0;
-        while (pos < bytes.Length)
+        try
         {
-            int length = (bytes[pos] << 16 | bytes[pos + 1] << 8 | bytes[pos + 2]) + 9;
-            byte[] frame = new byte[length];
-            bytes[pos..length].CopyTo(frame);
-            frames.Add(frame);
-            pos += 9 + length;
+            while (pos < bytes.Length)
+            {
+                int length = (bytes[pos] << 16 | bytes[pos + 1] << 8 | bytes[pos + 2]) + 9;
+                byte[] frame = new byte[length];
+                bytes[pos..length].CopyTo(frame);
+                frames.Add(frame);
+                pos += 9 + length;
+            }
+        }
+        catch (Exception)
+        {
+            //
         }
 
         return frames;

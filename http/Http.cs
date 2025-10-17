@@ -2,7 +2,8 @@
 
 using System.Net.Sockets;
 
-public abstract class ANetSocket : IAsyncSocket, ISyncSocket, IDisposable
+public interface IDualSocket : IAsyncSocket, ISyncSocket { }
+public abstract class ANetSocket : IDualSocket
 {
     abstract protected NetworkStream Stream { get; }
     abstract public bool IsSecure { get; }
@@ -10,17 +11,17 @@ public abstract class ANetSocket : IAsyncSocket, ISyncSocket, IDisposable
     public int Read(Span<byte> bytes) => Stream.Read(bytes);
     public int Read(byte[] bytes, int offset, int size) => Stream.Read(bytes, offset, size);
     public void Write(Span<byte> bytes) => Stream.Write(bytes);
-    public void Write(byte[] bytes, int offset, int size) => Stream.Write(bytes,offset,size);
+    public void Write(byte[] bytes, int offset, int size) => Stream.Write(bytes, offset, size);
     public async Task<int> ReadAsync(Memory<byte> bytes) => await Stream.ReadAsync(bytes);
-    public async Task<int> ReadAsync(byte[] bytes, int offset, int size) => await Stream.ReadAsync(bytes,offset,size);
+    public async Task<int> ReadAsync(byte[] bytes, int offset, int size) => await Stream.ReadAsync(bytes, offset, size);
     public async Task WriteAsync(Memory<byte> bytes) => await Stream.WriteAsync(bytes);
-    public async Task WriteAsync(byte[] bytes, int offset, int size) => await Stream.WriteAsync(bytes,offset,size);
+    public async Task WriteAsync(byte[] bytes, int offset, int size) => await Stream.WriteAsync(bytes, offset, size);
 
     public void Flush() => Stream.Flush();
     public async Task FlushAsync() => await Stream.FlushAsync();
     public void Close() => Stream.Close();
     public void Dispose() => Stream.Dispose();
-    public async Task DisposeAsync() => await Stream.DisposeAsync();
+    public async ValueTask DisposeAsync() => await Stream.DisposeAsync();
     public bool CanRead { get { return Stream.CanRead; } }
     public bool CanWrite { get { return Stream.CanWrite; } }
     public bool CanSeek { get { return Stream.CanSeek; } }
@@ -135,5 +136,5 @@ public abstract class ANetSocket : IAsyncSocket, ISyncSocket, IDisposable
 
         return total;
     }
-    
+
 }

@@ -41,23 +41,30 @@ public readonly struct WebSocketFrame(
         int index = 0;
         List<byte[]> frames = [];
 
-        while (index < bytes.Length - 1)
+        try
         {
-            int len = bytes[index] & 0x7f;
-            bool masked = (bytes[index + 1] & 0x80) != 0;
-            ulong ext = 0;
-            if (len == 126) ext = (ulong)bytes[2] << 8 | (ulong)bytes[3];
-            else if (len == 127) ext = (ulong)bytes[2] << 56 | (ulong)bytes[3] << 48 | (ulong)bytes[4] << 40 | (ulong)bytes[5] << 32 | (ulong)bytes[6] << 24 | (ulong)bytes[7] << 16 | (ulong)bytes[8] << 8 | (ulong)bytes[9];
+            while (index < bytes.Length - 1)
+            {
+                int len = bytes[index] & 0x7f;
+                bool masked = (bytes[index + 1] & 0x80) != 0;
+                ulong ext = 0;
+                if (len == 126) ext = (ulong)bytes[2] << 8 | (ulong)bytes[3];
+                else if (len == 127) ext = (ulong)bytes[2] << 56 | (ulong)bytes[3] << 48 | (ulong)bytes[4] << 40 | (ulong)bytes[5] << 32 | (ulong)bytes[6] << 24 | (ulong)bytes[7] << 16 | (ulong)bytes[8] << 8 | (ulong)bytes[9];
 
-            int length = 2;
-            if (masked) length += 4;
-            if (ext != 0) length += (int)ext;
-            else length += len;
+                int length = 2;
+                if (masked) length += 4;
+                if (ext != 0) length += (int)ext;
+                else length += len;
 
-            byte[] frame = new byte[length];
-            frames.Add(frame);
+                byte[] frame = new byte[length];
+                frames.Add(frame);
 
-            index += length;
+                index += length;
+            }
+        }
+        catch (Exception)
+        {
+            //
         }
         return frames;
     }

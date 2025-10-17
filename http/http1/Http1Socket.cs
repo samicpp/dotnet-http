@@ -17,10 +17,10 @@ public class Http1Client : IHttpClient
     public bool HeadersComplete { get; set; } 
     public bool BodyComplete { get; set; } 
 }
-public class Http1Socket(ANetSocket socket) : ISyncHttpSocket, IAsyncHttpSocket, IDisposable
+public class Http1Socket(IDualSocket socket) : ISyncHttpSocket, IAsyncHttpSocket, IDisposable
 {
     public bool IsHttps { get => socket.IsSecure; }
-    private readonly ANetSocket socket = socket;
+    protected readonly IDualSocket socket = socket;
     public void Dispose()
     {
         socket.Dispose();

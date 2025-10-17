@@ -51,11 +51,13 @@ public interface ISocket
 {
     bool CanRead { get; }
     bool CanWrite { get; }
+    bool IsSecure { get; }
+
 }
-public interface IAsyncSocket : ISocket
+public interface IAsyncSocket : ISocket, IAsyncDisposable
 {
     Task FlushAsync();
-    Task DisposeAsync();
+    // ValueTask DisposeAsync();
     Task<int> ReadAsync(Memory<byte> bytes);
     Task<int> ReadAsync(byte[] bytes, int offset, int size);
     Task WriteAsync(Memory<byte> bytes);
@@ -65,11 +67,11 @@ public interface IAsyncSocket : ISocket
     Task<byte[]> ReadCertainAsync(int size);
     Task<List<byte>> ReadUntilAsync(byte[] stop);
 }
-public interface ISyncSocket : ISocket
+public interface ISyncSocket : ISocket, IDisposable
 {
     void Flush();
     void Close();
-    void Dispose();
+    // void Dispose();
     int Read(Span<byte> bytes);
     int Read(byte[] bytes, int offset, int size);
     void Write(Span<byte> bytes);
