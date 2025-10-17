@@ -25,6 +25,7 @@ interface ISyncHttpSocket : IHttpSocket
     void Close(byte[] bytes);
     void Write(string text);
     void Write(byte[] bytes);
+    WebSocket.WebSocket WebSocket();
 }
 interface IAsyncHttpSocket: IHttpSocket
 {
@@ -33,6 +34,7 @@ interface IAsyncHttpSocket: IHttpSocket
     Task CloseAsync(byte[] bytes);
     Task WriteAsync(string text);
     Task WriteAsync(byte[] bytes);
+    Task<WebSocket.WebSocket> WebSocketAsync();
 }
 
 public interface IHttpClient

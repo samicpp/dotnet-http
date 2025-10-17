@@ -4,9 +4,13 @@ using System.Text;
 using System.Threading.Tasks;
 using Samicpp.Http;
 
-public class WebSocket(IDualSocket socket)
+public class WebSocket(IDualSocket socket) : IDisposable, IAsyncDisposable
 {
     protected readonly IDualSocket socket = socket;
+    public static readonly byte[] MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"u8.ToArray();
+
+    public void Dispose() => socket.Dispose();
+    public async ValueTask DisposeAsync() => await socket.DisposeAsync();
 
     public List<WebSocketFrame> Incoming()
     {

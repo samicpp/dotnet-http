@@ -11,6 +11,7 @@ using System.Net;
 using System.Text;
 using System.Runtime.InteropServices;
 using Samicpp.Http.Http1;
+using Samicpp.Http.WebSocket;
 using System.Collections.Generic;
 
 public class Tests
@@ -118,8 +119,8 @@ public class Tests
         }
     }
 
-    [Fact]
-    // [Fact(Skip = "wont end")]
+    // [Fact]
+    [Fact(Skip = "wont end")]
     [Trait("Catogory", "Network")]
     public async Task HttpEchoServer()
     {
@@ -174,6 +175,85 @@ public class Tests
                 Console.WriteLine($"received request with body[{text.Length}] \e[36m{text.Trim()}\e[0m");
                 await socket.CloseAsync(Encoding.UTF8.GetBytes($"<| {text.Trim()} |>\n"));
                 // await Task.Delay(100);
+            });
+        }
+    }
+
+    [Fact]
+    // [Fact(Skip = "wont end")]
+    [Trait("Catogory", "Network")]
+    public async Task WSEchoServer()
+    {
+        IPEndPoint address = new(IPAddress.Parse("0.0.0.0"), 4096);
+        using Socket listener = new(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+        listener.Bind(address);
+        listener.Listen(10);
+
+        Console.WriteLine("listening on " + address);
+
+        while (true)
+        {
+            var shandler = await listener.AcceptAsync();
+            Console.WriteLine($"\e[32m{shandler.RemoteEndPoint}\e[0m");
+
+            var _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using NetworkStream stream = new(shandler, ownsSocket: true);
+                    using Http1Socket socket = new(new TcpSocket(stream));
+
+                    Console.WriteLine("continuing");
+
+                    var client = await socket.ReadClientAsync();
+                    while (!client.HeadersComplete) client = await socket.ReadClientAsync();
+
+                    var ht = "";
+                    Console.WriteLine("client headers");
+                    Console.WriteLine(client.Headers);
+                    foreach (var (h, vs) in client.Headers) foreach (var v in vs) ht += $"{h}: {v}\r\n";
+                    Console.WriteLine(ht);
+
+                    if (client.Headers.TryGetValue("upgrade", out List<string> up) && up[0] == "websocket")
+                    {
+                        using var websocket = await socket.WebSocketAsync();
+                        while (true)
+                        {
+                            var frames = await websocket.IncomingAsync();
+                            Console.WriteLine("upgrade succesfull");
+                            foreach (var frame in frames)
+                            {
+                                Console.WriteLine("received frame " + frame.type);
+                                Console.WriteLine("payload = " + frame.payload);
+                                Console.WriteLine("frame size = " + frame.raw.Length);
+                                
+                                var payload = frame.GetPayload();
+
+                                if (frame.type == WebSocketFrameType.Text || frame.type == WebSocketFrameType.Continuation)
+                                {
+                                    await websocket.SendTextAsync(payload);
+                                    Console.WriteLine("ehco payload "+Encoding.UTF8.GetString(payload));
+                                }
+                                else if (frame.type == WebSocketFrameType.Ping)
+                                {
+                                    await websocket.SendPingAsync(frame.GetPayload());
+                                    Console.WriteLine("pong");
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("didnt wanna upgrade");
+                        await socket.CloseAsync("use websocket");
+                    }
+                    // await Task.Delay(100);
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine(e);
+                }
             });
         }
     }

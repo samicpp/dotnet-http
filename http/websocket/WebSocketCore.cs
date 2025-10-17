@@ -45,26 +45,29 @@ public readonly struct WebSocketFrame(
         {
             while (index < bytes.Length - 1)
             {
-                int len = bytes[index] & 0x7f;
+                int len = bytes[index + 1] & 0x7f;
                 bool masked = (bytes[index + 1] & 0x80) != 0;
                 ulong ext = 0;
-                if (len == 126) ext = (ulong)bytes[2] << 8 | (ulong)bytes[3];
-                else if (len == 127) ext = (ulong)bytes[2] << 56 | (ulong)bytes[3] << 48 | (ulong)bytes[4] << 40 | (ulong)bytes[5] << 32 | (ulong)bytes[6] << 24 | (ulong)bytes[7] << 16 | (ulong)bytes[8] << 8 | (ulong)bytes[9];
+                if (len == 126) ext = (ulong)bytes[index+2] << 8 | (ulong)bytes[index+3];
+                else if (len == 127) ext = (ulong)bytes[index+2] << 56 | (ulong)bytes[index+3] << 48 | (ulong)bytes[index+4] << 40 | (ulong)bytes[index+5] << 32 | (ulong)bytes[index+6] << 24 | (ulong)bytes[index+7] << 16 | (ulong)bytes[index+8] << 8 | (ulong)bytes[index+9];
 
                 int length = 2;
                 if (masked) length += 4;
                 if (ext != 0) length += (int)ext;
                 else length += len;
+                if (len == 126) length += 2;
+                else if (len == 127) length += 8;
 
                 byte[] frame = new byte[length];
+                for (int i = 0; i < length; i++) frame[i] = bytes[index + i];
                 frames.Add(frame);
 
                 index += length;
             }
         }
-        catch (Exception)
+        catch (Exception )
         {
-            //
+            // throw e;
         }
         return frames;
     }
@@ -100,12 +103,19 @@ public readonly struct WebSocketFrame(
         }
 
         // no nuint indexing available
-        if (ext != 0) payload = start..(start + (int)ext);
-        else payload = start..len;
+        // int length = 0;
+        if (len == 126 || len == 127) payload = start..(start + (int)ext);
+        else payload = start..(start + len);
+        // payload = start..(start + length);
 
         var type = opcode switch
         {
-            < 10 => (WebSocketFrameType)opcode,
+            0 => WebSocketFrameType.Continuation,
+            1 => WebSocketFrameType.Text,
+            2 => WebSocketFrameType.Binary,
+            8 => WebSocketFrameType.ConnectionClose,
+            9 => WebSocketFrameType.Ping,
+            10 => WebSocketFrameType.Pong,
             _ => WebSocketFrameType.Other,
         };
 
@@ -118,7 +128,7 @@ public readonly struct WebSocketFrame(
         if (payload.Length > 0xffff)
         {
             raw = new byte[10 + payload.Length];
-            raw[offset++] = (byte)((fin ? 0x80 : 0x00) & 0x70 & opcode);
+            raw[offset++] = (byte)((fin ? 0x80 : 0x00) | (0x0f & opcode));
             raw[offset++] = 127;
 
             raw[offset++] = (byte)(payload.Length >> 56);
@@ -134,7 +144,7 @@ public readonly struct WebSocketFrame(
         else if (payload.Length > 125)
         {
             raw = new byte[4 + payload.Length];
-            raw[offset++] = (byte)((fin ? 0x80 : 0x00) & 0x70 & opcode);
+            raw[offset++] = (byte)((fin ? 0x80 : 0x00) | (0x0f & opcode));
             raw[offset++] = 126;
 
             raw[offset++] = (byte)(payload.Length >> 8);
@@ -144,7 +154,7 @@ public readonly struct WebSocketFrame(
         else
         {
             raw = new byte[2 + payload.Length];
-            raw[offset++] = (byte)((fin ? 0x80 : 0x00) & 0x70 & opcode);
+            raw[offset++] = (byte)((fin ? 0x80 : 0x00) | (0x0f & opcode));
             raw[offset++] = (byte)payload.Length;
         }
 

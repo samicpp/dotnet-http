@@ -1,9 +1,16 @@
 namespace Samicpp.Http.Http1;
 
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Samicpp.Http;
+using Samicpp.Http.Http2;
+using Samicpp.Http.WebSocket;
 
+public class Http1Exception(string? message, Exception? other) : HttpException(message, other)
+{
+    public sealed class WebSocketNotSupported(string? err = null) : Http1Exception(err, null);
+}
 
 public class Http1Client : IHttpClient
 {
@@ -14,8 +21,8 @@ public class Http1Client : IHttpClient
     public string Version { get; } = "HTTP/1.1";
     public List<byte> Body { get; set; } = [];
 
-    public bool HeadersComplete { get; set; } 
-    public bool BodyComplete { get; set; } 
+    public bool HeadersComplete { get; set; }
+    public bool BodyComplete { get; set; }
 }
 public class Http1Socket(IDualSocket socket) : ISyncHttpSocket, IAsyncHttpSocket, IDisposable
 {
@@ -26,7 +33,7 @@ public class Http1Socket(IDualSocket socket) : ISyncHttpSocket, IAsyncHttpSocket
         socket.Dispose();
         GC.SuppressFinalize(this);
     }
-    
+
     private Http1Client client = new();
     public IHttpClient Client { get => client; }
     public bool IsClosed { get; set; }
@@ -49,7 +56,7 @@ public class Http1Socket(IDualSocket socket) : ISyncHttpSocket, IAsyncHttpSocket
         }
     }
 
-    private Dictionary<string, List<string>> headers = new() { { "Connection", ["close"] } };
+    private Dictionary<string, List<string>> headers = new(/*StringComparer.OrdinalIgnoreCase*/) { { "Connection", ["close"] } };
     public void SetHeader(string name, string value) => headers[name] = [value];
     public void AddHeader(string name, string value)
     {
@@ -222,7 +229,7 @@ public class Http1Socket(IDualSocket socket) : ISyncHttpSocket, IAsyncHttpSocket
         else if (!IsClosed)
         {
             // TODO: add support for sending final headers
-            socket.Write(Encoding.UTF8.GetBytes(bytes.Length.ToString("X")+"\r\n"));
+            socket.Write(Encoding.UTF8.GetBytes(bytes.Length.ToString("X") + "\r\n"));
             socket.Write(bytes);
             socket.Write([13, 10, 48, 13, 10, 13, 10]);
         }
@@ -279,5 +286,47 @@ public class Http1Socket(IDualSocket socket) : ISyncHttpSocket, IAsyncHttpSocket
             await socket.WriteAsync(bytes);
             await socket.WriteAsync("\r\n"u8.ToArray());
         }
-    } 
+    }
+
+
+    public static readonly byte[] H2C_UPGRADE = "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: h2c\r\n\r\n"u8.ToArray();
+    public static readonly byte[] WS_UPGRADE = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "u8.ToArray();
+
+    public WebSocket WebSocket()
+    {
+        if (client.Headers.TryGetValue("sec-websocket-key", out List<string>? kl))
+        {
+            var ckey = kl[0];
+            byte[] ukey = [.. Encoding.UTF8.GetBytes(ckey), .. Http.WebSocket.WebSocket.MAGIC];
+            using var sha1 = SHA1.Create();
+            byte[] hash = sha1.ComputeHash(ukey);
+            var key = Encoding.UTF8.GetBytes(Convert.ToBase64String(hash));
+            byte[] res = [.. WS_UPGRADE, .. key, 13, 10, 13, 10];
+            socket.Write(res);
+            return new WebSocket(socket);
+        }
+        else
+        {
+            throw new Http1Exception.WebSocketNotSupported("no websocket key");
+        }
+    }
+    public async Task<WebSocket> WebSocketAsync()
+    {
+        if (client.Headers.TryGetValue("sec-websocket-key", out List<string>? kl))
+        {
+            var ckey = kl[0];
+            byte[] ukey = [.. Encoding.UTF8.GetBytes(ckey), .. Http.WebSocket.WebSocket.MAGIC];
+            using var sha1 = SHA1.Create();
+            using var stream = new MemoryStream(ukey);
+            byte[] hash = await sha1.ComputeHashAsync(stream);
+            var key = Encoding.UTF8.GetBytes(Convert.ToBase64String(hash));
+            byte[] res = [.. WS_UPGRADE, .. key, 13, 10, 13, 10];
+            await socket.WriteAsync(res);
+            return new WebSocket(socket);
+        }
+        else
+        {
+            throw new Http1Exception.WebSocketNotSupported("no websocket key");
+        }
+    }
 }
