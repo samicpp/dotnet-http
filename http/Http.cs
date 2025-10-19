@@ -3,6 +3,7 @@
 using System.Net.Sockets;
 
 public interface IDualSocket : IAsyncSocket, ISyncSocket { }
+public interface IDualHttpSocket : IAsyncHttpSocket, ISyncHttpSocket { }
 public abstract class ANetSocket : IDualSocket
 {
     abstract protected NetworkStream Stream { get; }

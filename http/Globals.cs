@@ -18,7 +18,7 @@ public interface IHttpSocket
     List<string> DelHeader(string name);
     Compression Compression { get; set; }
 }
-interface ISyncHttpSocket : IHttpSocket
+public interface ISyncHttpSocket : IHttpSocket, IDisposable
 {
     IHttpClient ReadClient();
     void Close(string text);
@@ -27,7 +27,7 @@ interface ISyncHttpSocket : IHttpSocket
     void Write(byte[] bytes);
     WebSocket.WebSocket WebSocket();
 }
-interface IAsyncHttpSocket: IHttpSocket
+public interface IAsyncHttpSocket: IHttpSocket, IAsyncDisposable
 {
     Task<IHttpClient> ReadClientAsync();
     Task CloseAsync(string text);

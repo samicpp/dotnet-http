@@ -14,7 +14,7 @@ public enum Compression
 
 public static class Compressor
 {
-    public static CompressionLevel level = CompressionLevel.Fastest;
+    public static CompressionLevel level = CompressionLevel.Optimal;
     public static (Stream,MemoryStream) CStream(Compression compression)
     {
         // if (compression == Compression.None) return new MemoryStream(uncompressed);
@@ -48,7 +48,7 @@ public static class Compressor
     {
         if (compression == Compression.None) return uncompressed;
         var (stream, mstream) = CStream(compression);
-        await stream.WriteAsync(uncompressed, 0, uncompressed.Length);
+        await stream.WriteAsync(uncompressed);
         await stream.DisposeAsync();
         var output = mstream.ToArray();
         await mstream.DisposeAsync();

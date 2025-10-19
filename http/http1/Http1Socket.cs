@@ -24,13 +24,18 @@ public class Http1Client : IHttpClient
     public bool HeadersComplete { get; set; }
     public bool BodyComplete { get; set; }
 }
-public class Http1Socket(IDualSocket socket) : ISyncHttpSocket, IAsyncHttpSocket, IDisposable
+public class Http1Socket(IDualSocket socket) : IDualHttpSocket
 {
     public bool IsHttps { get => socket.IsSecure; }
     protected readonly IDualSocket socket = socket;
     public void Dispose()
     {
         socket.Dispose();
+        GC.SuppressFinalize(this);
+    }
+    public async ValueTask DisposeAsync()
+    {
+        await socket.DisposeAsync();
         GC.SuppressFinalize(this);
     }
 
@@ -56,7 +61,7 @@ public class Http1Socket(IDualSocket socket) : ISyncHttpSocket, IAsyncHttpSocket
         }
     }
 
-    private Dictionary<string, List<string>> headers = new(/*StringComparer.OrdinalIgnoreCase*/) { { "Connection", ["close"] } };
+    private readonly Dictionary<string, List<string>> headers = new(/*StringComparer.OrdinalIgnoreCase*/) { { "Connection", ["close"] } };
     public void SetHeader(string name, string value) => headers[name] = [value];
     public void AddHeader(string name, string value)
     {

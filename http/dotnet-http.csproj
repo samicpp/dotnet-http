@@ -8,4 +8,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="hpack" Version="1.4.0" />
+  </ItemGroup>
+
 </Project>
