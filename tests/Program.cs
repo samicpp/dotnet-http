@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using Samicpp.Http.Http1;
 using Samicpp.Http.WebSocket;
 using System.Collections.Generic;
+using Samicpp.Http.Http2.Hpack;
 
 public class Tests
 {
@@ -39,6 +40,21 @@ public class Tests
         Console.Write("frame = [ ");
         foreach (byte b in frame.ToBytes()) Console.Write($"{b}, ");
         Console.WriteLine("]");
+    }
+
+    [Fact]
+    public void biteratorTest() // name is intentional, not spelling mistake
+    {
+        // byte[] data = [ 0b1010_0110, 0b1111_0000 ];
+        byte[] data = "hello world text"u8.ToArray();
+
+        var bitIter = new BitIterator(data);
+
+        Console.WriteLine(data);
+
+        foreach (var bit in bitIter) Console.Write(bit ? '1' : '0');
+
+        Console.WriteLine();
     }
 
 
@@ -179,8 +195,8 @@ public class Tests
         }
     }
 
-    [Fact]
-    // [Fact(Skip = "wont end")]
+    // [Fact]
+    [Fact(Skip = "wont end")]
     [Trait("Catogory", "Network")]
     public async Task WSEchoServer()
     {
@@ -227,13 +243,13 @@ public class Tests
                                 Console.WriteLine("received frame " + frame.type);
                                 Console.WriteLine("payload = " + frame.payload);
                                 Console.WriteLine("frame size = " + frame.raw.Length);
-                                
+
                                 var payload = frame.GetPayload();
 
                                 if (frame.type == WebSocketFrameType.Text || frame.type == WebSocketFrameType.Continuation)
                                 {
                                     await websocket.SendTextAsync(payload);
-                                    Console.WriteLine("ehco payload "+Encoding.UTF8.GetString(payload));
+                                    Console.WriteLine("ehco payload " + Encoding.UTF8.GetString(payload));
                                 }
                                 else if (frame.type == WebSocketFrameType.Ping)
                                 {
@@ -250,11 +266,12 @@ public class Tests
                     }
                     // await Task.Delay(100);
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     Console.WriteLine(e);
                 }
             });
         }
     }
+
 }
