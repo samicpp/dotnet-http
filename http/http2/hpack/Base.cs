@@ -1,6 +1,7 @@
 namespace Samicpp.Http.Http2.Hpack;
 
 using System.Collections.ObjectModel;
+// using System.Linq;
 
 
 // https://httpwg.org/specs/rfc7541.html
@@ -81,7 +82,7 @@ public class DynamicTable(int headerTableSize)
     int size = 0;
 
     public int Size { get => size; }
-    public int TableSize { get => tableSize; set => tableSize = value; }
+    public int TableSize { get => tableSize; set { tableSize = value; Evict(); } }
     // public LinkedList<(byte[] name, byte[] value)> Table { get => table; }
 
     public void AddHeader(byte[] name, byte[] value)
@@ -89,6 +90,25 @@ public class DynamicTable(int headerTableSize)
         table.AddFirst((name, value));
         size += name.Length + value.Length + 32; // 4.2 #calculating.table.size
         Evict();
+    }
+
+    public (byte[],byte[]) Get(int index)
+    {
+        if (index < 0 || index >= table.Count) throw new ArgumentOutOfRangeException();
+        
+        LinkedListNode<(byte[], byte[])> current;
+        if (index < table.Count / 2)
+        {
+            current = table.First!;
+            for (int i = 0; i < index; i++) current = current.Next!;
+        }
+        else
+        {
+            current = table.Last!;
+            for (int i = table.Count - 1; i > index; i--) current = current.Previous!;
+        }
+        
+        return current.Value;
     }
 
     void Evict()
