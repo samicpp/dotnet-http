@@ -140,7 +140,7 @@ public class Encoder(int headerTableSize)
         return null;
     }
 
-    public byte[] Encode(List<(byte[], byte[])> headers)
+    public byte[] Encode((byte[], byte[])[] headers)
     {
         var stream = new MemoryStream();
 
@@ -169,7 +169,7 @@ public class Encoder(int headerTableSize)
 
         return stream.ToArray();
     }
-    public byte[] Encode(List<HeaderEntry> headers)
+    public byte[] Encode(HeaderEntry[] headers)
     {
         var stream = new MemoryStream();
 

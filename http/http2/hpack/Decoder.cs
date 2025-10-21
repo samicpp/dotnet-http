@@ -75,7 +75,7 @@ public class Decoder(int headerTableSize)
         return raw;
     }
     
-    List<(byte[],byte[])> Decode(byte[] block){
+    public List<(byte[],byte[])> Decode(byte[] block){
         List<(byte[], byte[])> dec = [];
         int[] posRef = [0];
 

@@ -1,10 +1,6 @@
 namespace Samicpp.Http.Http2;
 
 
-public class Http2Exception(string? message, Exception? other) : HttpException(message, other)
-{
-    public sealed class MalformedFrame(Exception? err = null): Http2Exception(null, err);
-}
 public readonly struct Http2Frame(
     byte[] raw,
     int length, int streamID, byte btype, byte flags,

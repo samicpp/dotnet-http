@@ -4,6 +4,7 @@ public class HttpException(string? message = null, Exception? source = null) : E
 {
     public readonly Exception? source = source;
     public sealed class ConnectionClosed(string? message) : HttpException(message);
+    public sealed class HeadersSent(string? message) : HttpException(message);
 }
 public interface IHttpSocket
 {
