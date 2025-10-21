@@ -26,7 +26,7 @@ public class Decoder(int headerTableSize)
         }
     }
 
-    int ReadInteger(byte[] data, int[] posRef, int prefixBits)
+    static int ReadInteger(byte[] data, int[] posRef, int prefixBits)
     {
         var pos = posRef[0];
         if (pos >= data.Length) throw new IndexOutOfRangeException();
