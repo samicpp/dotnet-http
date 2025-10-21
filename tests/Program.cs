@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Samicpp.Http;
 using Samicpp.Http.Http2;
+using Samicpp.Http.Http2.Hpack;
 using System.Net.Sockets;
 using System.Net;
 using System.Text;
@@ -13,7 +14,6 @@ using System.Runtime.InteropServices;
 using Samicpp.Http.Http1;
 using Samicpp.Http.WebSocket;
 using System.Collections.Generic;
-using Samicpp.Http.Http2.Hpack;
 
 public class Tests
 {
@@ -38,7 +38,7 @@ public class Tests
         Console.WriteLine(frame.priority);
         Console.WriteLine(frame.padding);
         Console.Write("frame = [ ");
-        foreach (byte b in frame.ToBytes()) Console.Write($"{b}, ");
+        foreach (byte b in frame.ToBytes()) Console.Write($"0x{b:X}, ");
         Console.WriteLine("]");
     }
 
@@ -55,6 +55,35 @@ public class Tests
         foreach (var bit in bitIter) Console.Write(bit ? '1' : '0');
 
         Console.WriteLine();
+    }
+
+    [Fact]
+    public void dehpacker()
+    {
+        // 2 5
+        Http.Http2.Hpack.Encoder hpacke = new(4096);
+        var enc = hpacke.Encode([
+            new HeaderEntry("indexed"u8.ToArray(),"header"u8.ToArray()),
+            new HeaderEntry("not indexed"u8.ToArray(),"header"u8.ToArray()),
+        ]);
+
+        Console.Write("hpack encoded = [ ");
+        foreach (var b in enc) Console.Write($"0x{b:X}, ");
+        Console.WriteLine("]");
+    }
+    
+    [Fact]
+    public void hpacker()
+    {
+        // 2 5
+        Http.Http2.Hpack.Decoder hpackd = new(4096);
+        var dec = hpackd.Decode([0x82, 0x85, 0x40, 0x85, 0x35, 0x52, 0x17, 0xC9, 0x64, 0x85, 0x9C, 0xA3, 0x90, 0xB6, 0x7F, 0x40, 0x88, 0xA8, 0xE9, 0x50, 0xD5, 0x48, 0x5F, 0x25, 0x93, 0x85, 0x9C, 0xA3, 0x90, 0xB6, 0x7F,]);
+        foreach(var (h,v) in dec)
+        {
+            var header = Encoding.UTF8.GetString(h);
+            var value = Encoding.UTF8.GetString(v);
+            Console.WriteLine($"{header}: {value}");
+        }
     }
 
 

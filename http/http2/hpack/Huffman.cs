@@ -318,8 +318,8 @@ public class Huffman
 {
     private readonly Dictionary<byte, Dictionary<uint, byte?>> table = [];
     private readonly (uint code, byte len) eos;
-    private readonly uint[] codeBySymbol = []; // 0..256
-    private readonly byte[] lenBySymbol = [];  // 0..256
+    private readonly uint[] codeBySymbol = new uint[257]; // 0..256
+    private readonly byte[] lenBySymbol = new byte[257];  // 0..256
 
     public Huffman() : this(HuffmanTable.table) { }
     public Huffman((uint, byte)[] codeTable)

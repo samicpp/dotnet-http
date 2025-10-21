@@ -1,13 +1,13 @@
 namespace Samicpp.Http.Http2.Hpack;
 
 
-public struct HeaderEntry
+public struct HeaderEntry(byte[] name, byte[] value, bool index = true, bool never = false)
 {
-    public bool index;
-    public bool never;
+    public bool index = index;
+    public bool never = never;
 
-    public byte[] name;
-    public byte[] value;
+    public byte[] name = name;
+    public byte[] value = value;
 }
 
 public class Encoder(int headerTableSize)
@@ -191,8 +191,8 @@ public class Encoder(int headerTableSize)
             }
             else if (index != null && !header.index)
             {
-                if (header.never) WriteNeverIndex(stream, (byte)index, header.value);
-                else WriteNoIndex(stream, (byte)index, header.value);
+                if (header.never) WriteNeverIndex(stream, (int)index, header.value);
+                else WriteNoIndex(stream, (int)index, header.value);
             }
             else if (header.index)
             {
