@@ -334,4 +334,52 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
             throw new Http1Exception.WebSocketNotSupported("no websocket key");
         }
     }
+
+    public Http2Connection H2C()
+    {
+        Http2Settings settings;
+        if (client.Headers.TryGetValue("http2-settings", out List<string>? sl))
+        {
+            var ssett = sl[0];
+            byte[] sb = Convert.FromBase64String(ssett)!;
+            settings = Http2Settings.Parse(sb) ?? Http2Settings.Default();
+        }
+        else
+        {
+            settings = Http2Settings.Default();
+        }
+
+        socket.Write(H2C_UPGRADE);
+        var conn = new Http2Connection(socket, settings);
+        return conn;
+    }
+    public async Task<Http2Connection> H2CAsync()
+    {
+        Http2Settings settings;
+        if (client.Headers.TryGetValue("http2-settings", out List<string>? sl))
+        {
+            var ssett = sl[0];
+            byte[] sb = Convert.FromBase64String(ssett)!;
+            settings = Http2Settings.Parse(sb) ?? Http2Settings.Default();
+        }
+        else
+        {
+            settings = Http2Settings.Default();
+        }
+        
+        await socket.WriteAsync(H2C_UPGRADE);
+        var conn = new Http2Connection(socket, settings);
+
+        Http2Status stream = new(settings.initial_window_size ?? 16384, 1, true, true, false, false);
+
+        stream.headers.Add((":authority"u8.ToArray(), Encoding.UTF8.GetBytes(client.Host)));
+        stream.headers.Add((":method"u8.ToArray(), Encoding.UTF8.GetBytes(client.Method)));
+        stream.headers.Add((":path"u8.ToArray(), Encoding.UTF8.GetBytes(client.Path)));
+
+        foreach (var (h, vs) in client.Headers) foreach (var v in vs) stream.headers.Add((Encoding.UTF8.GetBytes(h), Encoding.UTF8.GetBytes(v)));
+
+        conn.streams[1] = stream;
+
+        return conn;
+    }
 }

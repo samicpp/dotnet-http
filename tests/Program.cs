@@ -96,7 +96,7 @@ public class Tests
     [Trait("Category", "Network")]
     public async Task TcpExampleServer()
     { // https://learn.microsoft.com/en-us/dotnet/fundamentals/networking/sockets/socket-services
-        IPEndPoint ipEndPoint = new(IPAddress.Parse("0.0.0.0"), 1024);
+        IPEndPoint ipEndPoint = new(IPAddress.Parse("0.0.0.0"), 512);
         using Socket listener = new(
             ipEndPoint.AddressFamily,
             SocketType.Stream,
@@ -167,7 +167,7 @@ public class Tests
                     // Console.ForegroundColor = ConsoleColor.Blue;
                     // Console.WriteLine(text);
                     // Console.ResetColor();
-                    await socket.WriteAsync(Encoding.UTF8.GetBytes($"<| {text.Trim()} |>\n"));
+                    if(socket.CanWrite) await socket.WriteAsync(Encoding.UTF8.GetBytes($"<| {text.Trim()} |>\n"));
                 }
                 catch(Exception e)
                 {
@@ -351,11 +351,11 @@ public class Tests
             var shandler = await listener.AcceptAsync();
             Console.WriteLine($"\e[32m{shandler.RemoteEndPoint}\e[0m");
 
-            
+
             try
             {
-                using NetworkStream stream = new(shandler, ownsSocket: true);
-                using Http2Connection socket = new(new TcpSocket(stream), Http2Settings.Default());
+                using NetworkStream nstream = new(shandler, ownsSocket: true);
+                using Http2Connection socket = new(new TcpSocket(nstream), Http2Settings.Default());
 
                 Console.WriteLine("continuing");
 
@@ -373,20 +373,112 @@ public class Tests
                     }
 
                     var opened = await socket.HandleAsync(frames);
-                    foreach (var st in opened)
+                    foreach (var sid in opened)
                     {
-                        Console.WriteLine($"stream opened {st}");
+                        Console.WriteLine($"stream opened {sid}");
                         // throw new Exception("test");
-                        await socket.SendHeadersAsync(st, false, [
+                        var stream = socket.streams[sid];
+
+                        Console.WriteLine("client sent headers \x1b[32m");
+                        foreach (var (h, v) in stream.headers)
+                        {
+                            var header = Encoding.UTF8.GetString(h);
+                            var value = Encoding.UTF8.GetString(v);
+                            Console.WriteLine($"{header}: {value}");
+                        }
+                        Console.Write("\x1b[0m");
+
+                        await socket.SendHeadersAsync(sid, false, [
                             (":status"u8.ToArray(), "200"u8.ToArray()),
                             ("content-type"u8.ToArray(), "text/plain"u8.ToArray()),
                             ("content-length"u8.ToArray(), "11"u8.ToArray()),
                         ]);
-                        await socket.SendDataAsync(st, true, "hello world"u8.ToArray());
+                        await socket.SendDataAsync(sid, true, "hello world"u8.ToArray());
                     }
                 }
 
+                await Task.Delay(100);
+
                 break;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+
+        }
+    }
+    
+    [Fact]
+    // [Fact(Skip = "long test")]
+    [Trait("Catogory", "Network")]
+    public async Task H2CPUgrade()
+    {
+        IPEndPoint address = new(IPAddress.Parse("0.0.0.0"), 16384);
+        using Socket listener = new(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+        listener.Bind(address);
+        listener.Listen(10);
+
+        Console.WriteLine("h2c upgrade server listening on 16384");
+
+        // Console.WriteLine("listening on " + address);
+
+        while (true)
+        {
+            var shandler = await listener.AcceptAsync();
+            Console.WriteLine($"\e[32m{shandler.RemoteEndPoint}\e[0m");
+
+            
+            try
+            {
+                using NetworkStream nstream = new(shandler, ownsSocket: true);
+                using Http1Socket socket = new(new TcpSocket(nstream));
+
+                Console.WriteLine("continuing");
+
+                var client = await socket.ReadClientAsync();
+                while (!client.HeadersComplete) client = await socket.ReadClientAsync();
+
+                if (client.Headers.TryGetValue("upgrade", out List<string> up) && up[0] == "h2c")
+                {
+                    Console.WriteLine("upgrading");
+                    using Http2Connection h2c = await socket.H2CAsync();
+                    Console.WriteLine("succesfull upgrade");
+
+                    await h2c.SendSettingsAsync(Http2Settings.Default());
+                    Console.WriteLine("sent settings");
+
+                    int sid = 1;
+                    Console.WriteLine($"stream opened {sid}");
+                    
+                    var stream = h2c.streams[sid];
+
+                    Console.WriteLine("client sent headers \x1b[32m");
+                    foreach (var (h, v) in stream.headers)
+                    {
+                        var header = Encoding.UTF8.GetString(h);
+                        var value = Encoding.UTF8.GetString(v);
+                        Console.WriteLine($"{header}: {value}");
+                    }
+                    Console.Write("\x1b[0m");
+
+                    await h2c.SendHeadersAsync(sid, false, [
+                        (":status"u8.ToArray(), "200"u8.ToArray()),
+                        ("content-type"u8.ToArray(), "text/plain"u8.ToArray()),
+                        ("content-length"u8.ToArray(), "11"u8.ToArray()),
+                    ]);
+                    await h2c.SendDataAsync(sid, true, "hello world"u8.ToArray());
+                        
+
+                    await Task.Delay(100);
+
+                    break;
+                }
+                else
+                {
+                    await socket.CloseAsync("come back when you're ready to use http2");
+                }
             }
             catch (Exception e)
             {
