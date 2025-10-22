@@ -470,37 +470,37 @@ public class Tests
                     {
                         Console.WriteLine($"stream opened {sid}");
                         // throw new Exception("test");
-                        // var stream = socket.streams[sid];
+                        var stream = socket.streams[sid];
 
-                        // Console.WriteLine("client sent headers \x1b[32m");
-                        // foreach (var (h, v) in stream.headers)
-                        // {
-                        //     var header = Encoding.UTF8.GetString(h);
-                        //     var value = Encoding.UTF8.GetString(v);
-                        //     Console.WriteLine($"{header}: {value}");
-                        // }
-                        // Console.Write("\x1b[0m");
-
-                        // await socket.SendHeadersAsync(sid, false, [
-                        //     (":status"u8.ToArray(), "200"u8.ToArray()),
-                        //     ("content-type"u8.ToArray(), "text/plain"u8.ToArray()),
-                        //     ("content-length"u8.ToArray(), "11"u8.ToArray()),
-                        // ]);
-                        // await socket.SendDataAsync(sid, true, "hello world"u8.ToArray());
-                        using var stream = new Http2Stream(sid, socket);
-
-                        var client = await stream.ReadClientAsync();
                         Console.WriteLine("client sent headers \x1b[32m");
-                        foreach (var (header, vs) in client.Headers)
+                        foreach (var (h, v) in stream.headers)
                         {
-                            foreach (var value in vs) Console.WriteLine($"{header}: {value}");
+                            var header = Encoding.UTF8.GetString(h);
+                            var value = Encoding.UTF8.GetString(v);
+                            Console.WriteLine($"{header}: {value}");
                         }
                         Console.Write("\x1b[0m");
 
-                        stream.SetHeader("content-type", "text/plain");
-                        stream.SetHeader("content-length", "12");
-                        await stream.CloseAsync("hello world\n");
-                        await Task.Delay(50);
+                        await socket.SendHeadersAsync(sid, false, [
+                            (":status"u8.ToArray(), "200"u8.ToArray()),
+                            ("content-type"u8.ToArray(), "text/plain"u8.ToArray()),
+                            ("content-length"u8.ToArray(), "11"u8.ToArray()),
+                        ]);
+                        await socket.SendDataAsync(sid, true, "hello world"u8.ToArray());
+                        // using var stream = new Http2Stream(sid, socket);
+
+                        // var client = await stream.ReadClientAsync();
+                        // Console.WriteLine("client sent headers \x1b[32m");
+                        // foreach (var (header, vs) in client.Headers)
+                        // {
+                        //     foreach (var value in vs) Console.WriteLine($"{header}: {value}");
+                        // }
+                        // Console.Write("\x1b[0m");
+
+                        // stream.SetHeader("content-type", "text/plain");
+                        // // stream.SetHeader("content-length", "12");
+                        // await stream.CloseAsync("hello world\n");
+                        // await Task.Delay(50);
                     }
                 }
 
