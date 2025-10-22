@@ -12,18 +12,6 @@ public class Http1Exception(string? message, Exception? other) : HttpException(m
     public sealed class WebSocketNotSupported(string? err = null) : Http1Exception(err, null);
 }
 
-public class Http1Client : IHttpClient
-{
-    public Dictionary<string, List<string>> Headers { get; set; } = [];
-    public string Host { get; set; } = "about:blank";
-    public string Method { get; set; } = "NILL";
-    public string Path { get; set; } = "/";
-    public string Version { get; } = "HTTP/1.1";
-    public List<byte> Body { get; set; } = [];
-
-    public bool HeadersComplete { get; set; }
-    public bool BodyComplete { get; set; }
-}
 public class Http1Socket(IDualSocket socket) : IDualHttpSocket
 {
     public bool IsHttps { get => socket.IsSecure; }
@@ -39,7 +27,7 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
         GC.SuppressFinalize(this);
     }
 
-    private Http1Client client = new();
+    private readonly HttpClient client = new();
     public IHttpClient Client { get => client; }
     public bool IsClosed { get; set; }
     public bool HeadSent { get; set; }
@@ -89,6 +77,7 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
 
             client.Method = mpv[0];
             client.Path = mpv[1];
+            client.Version = "HTTP/1.1";
 
             foreach (var header in lines[1..])
             {
@@ -335,7 +324,7 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
         }
     }
 
-    public Http2Connection H2C()
+    public Http2Session H2C()
     {
         Http2Settings settings;
         if (client.Headers.TryGetValue("http2-settings", out List<string>? sl))
@@ -350,10 +339,10 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
         }
 
         socket.Write(H2C_UPGRADE);
-        var conn = new Http2Connection(socket, settings);
+        var conn = new Http2Session(socket, settings);
         return conn;
     }
-    public async Task<Http2Connection> H2CAsync()
+    public async Task<Http2Session> H2CAsync()
     {
         Http2Settings settings;
         if (client.Headers.TryGetValue("http2-settings", out List<string>? sl))
@@ -368,7 +357,7 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
         }
         
         await socket.WriteAsync(H2C_UPGRADE);
-        var conn = new Http2Connection(socket, settings);
+        var conn = new Http2Session(socket, settings);
 
         Http2Status stream = new(settings.initial_window_size ?? 16384, 1, true, true, false, false);
 

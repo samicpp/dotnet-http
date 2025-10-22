@@ -1,15 +1,10 @@
 namespace Samicpp.Http;
 
-public class HttpException(string? message = null, Exception? source = null) : Exception(message)
-{
-    public readonly Exception? source = source;
-    public sealed class ConnectionClosed(string? message) : HttpException(message);
-    public sealed class HeadersSent(string? message) : HttpException(message);
-}
 public interface IHttpSocket
 {
     IHttpClient Client { get; }
     bool IsClosed { get; }
+    bool IsHttps { get; }
     bool HeadSent { get; }
     int Status { get; set; }
     string StatusMessage { get; set; }
@@ -37,6 +32,7 @@ public interface IAsyncHttpSocket: IHttpSocket, IAsyncDisposable
     Task WriteAsync(byte[] bytes);
     Task<WebSocket.WebSocket> WebSocketAsync();
 }
+public interface IDualHttpSocket : IAsyncHttpSocket, ISyncHttpSocket { }
 
 public interface IHttpClient
 {
@@ -84,3 +80,4 @@ public interface ISyncSocket : ISocket, IDisposable
     byte[] ReadCertain(int size);
     List<byte> ReadUntil(byte[] stop);
 }
+public interface IDualSocket : IAsyncSocket, ISyncSocket { }

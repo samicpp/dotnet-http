@@ -2,8 +2,6 @@
 
 using System.Net.Sockets;
 
-public interface IDualSocket : IAsyncSocket, ISyncSocket { }
-public interface IDualHttpSocket : IAsyncHttpSocket, ISyncHttpSocket { }
 public abstract class ANetSocket : IDualSocket
 {
     abstract protected NetworkStream Stream { get; }
@@ -139,3 +137,24 @@ public abstract class ANetSocket : IDualSocket
     }
 
 }
+
+public class HttpClient : IHttpClient
+{
+    public Dictionary<string, List<string>> Headers { get; set; } = [];
+    public string Host { get; set; } = "about:blank";
+    public string Method { get; set; } = "NILL";
+    public string Path { get; set; } = "/";
+    public string Version { get; set; } = "VER";
+    public List<byte> Body { get; set; } = [];
+
+    public bool HeadersComplete { get; set; }
+    public bool BodyComplete { get; set; }
+}
+
+public class HttpException(string? message = null, Exception? source = null) : Exception(message)
+{
+    public readonly Exception? source = source;
+    public sealed class ConnectionClosed(string? message) : HttpException(message);
+    public sealed class HeadersSent(string? message) : HttpException(message);
+}
+

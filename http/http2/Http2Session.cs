@@ -34,7 +34,7 @@ public class Http2Status(
     public List<(byte[] name, byte[] value)> headers = [];
 }
 
-public class Http2Connection(IDualSocket socket, Http2Settings settings) : IDisposable, IAsyncDisposable
+public class Http2Session(IDualSocket socket, Http2Settings settings) : IDisposable, IAsyncDisposable
 {
     public readonly ConcurrentDictionary<int, Http2Status> streams = new();
     readonly IDualSocket socket = socket;
@@ -44,6 +44,8 @@ public class Http2Connection(IDualSocket socket, Http2Settings settings) : IDisp
     public Hpack.Encoder hpacke = new(settings.header_table_size ?? 4096);
     public Hpack.Decoder hpackd = new(settings.header_table_size ?? 4096);
     private readonly LinkedList<Http2Frame> que = [];
+
+    public bool IsSecure { get => socket.IsSecure; }
 
     readonly SemaphoreSlim sendLock = new(1, 1);
     readonly SemaphoreSlim handleLock = new(1, 1);
@@ -250,7 +252,7 @@ public class Http2Connection(IDualSocket socket, Http2Settings settings) : IDisp
                         stream.body.AddRange(frame.Payload);
                         stream.end_stream = (frame.flags & 1) != 0;
                         streams[frame.streamID] = stream;
-                        
+
                         SendWindowUpdate(0, frame.Payload.Length);
                         SendWindowUpdate(frame.streamID, frame.Payload.Length);
                     }

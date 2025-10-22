@@ -14,6 +14,7 @@ using System.Runtime.InteropServices;
 using Samicpp.Http.Http1;
 using Samicpp.Http.WebSocket;
 using System.Collections.Generic;
+using Http2Connection = Samicpp.Http.Http2.Http2Session;
 
 public class Tests
 {
