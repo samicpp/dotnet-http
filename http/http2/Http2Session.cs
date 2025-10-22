@@ -303,15 +303,18 @@ public class Http2Session(IDualSocket socket, Http2Settings settings) : IDisposa
                     break;
 
                 case Http2FrameType.Settings:
-                    settings = new(
-                        frame.settings.header_table_size ?? settings.header_table_size,
-                        frame.settings.enable_push ?? settings.enable_push,
-                        frame.settings.max_concurrent_streams ?? settings.max_concurrent_streams,
-                        frame.settings.initial_window_size ?? settings.initial_window_size,
-                        frame.settings.max_frame_size ?? settings.max_frame_size,
-                        frame.settings.max_header_list_size ?? settings.max_header_list_size
-                    );
-                    SendSettings();
+                    if (frame.streamID == 0 && frame.flags == 0)
+                    {
+                        settings = new(
+                            frame.settings.header_table_size ?? settings.header_table_size,
+                            frame.settings.enable_push ?? settings.enable_push,
+                            frame.settings.max_concurrent_streams ?? settings.max_concurrent_streams,
+                            frame.settings.initial_window_size ?? settings.initial_window_size,
+                            frame.settings.max_frame_size ?? settings.max_frame_size,
+                            frame.settings.max_header_list_size ?? settings.max_header_list_size
+                        );
+                        SendSettings();
+                    }
                     break;
 
                 case Http2FrameType.Goaway: goaway = frame; break;
@@ -832,8 +835,9 @@ public class Http2Session(IDualSocket socket, Http2Settings settings) : IDisposa
         try
         {
             // if (socket.CanWrite && goaway == null) SendGoaway(0, 0x2, "Dispose called before connection closed"u8.ToArray());
-            if (socket.CanWrite) SendGoaway(0, 0x0, []);
+            if (socket.CanWrite && goaway == null) SendGoaway(0, 0x0, []);
         }
+        // catch (Exception) { }
         finally
         {
             socket.Dispose();
@@ -845,8 +849,9 @@ public class Http2Session(IDualSocket socket, Http2Settings settings) : IDisposa
         try
         {
             // if (socket.CanWrite && goaway == null) await SendGoawayAsync(0, 0x2, "Dispose called before connection closed"u8.ToArray());
-            if (socket.CanWrite) await SendGoawayAsync(0, 0x0, []);
+            if (socket.CanWrite && goaway == null) await SendGoawayAsync(0, 0x0, []);
         }
+        // catch (Exception) { }
         finally
         {
             await socket.DisposeAsync();
