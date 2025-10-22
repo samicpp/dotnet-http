@@ -134,7 +134,8 @@ public class Tests
         await Task.Delay(0);
     }*/
 
-    [Fact(Skip = "wont end")]
+    [Fact]
+    // [Fact(Skip = "long test")]
     [Trait("Category", "Network")]
     public async Task TcpEchoServer()
     {
@@ -144,17 +145,20 @@ public class Tests
         listener.Bind(address);
         listener.Listen(10);
 
+        Console.WriteLine("tcp echo server listening on 1024");
+
         while (true)
         {
             var shandler = await listener.AcceptAsync();
             Console.WriteLine($"\e[32m{shandler.RemoteEndPoint}\e[0m");
 
-            var _ = Task.Run(async () =>
-            {
-                using NetworkStream stream = new(shandler, ownsSocket: true);
-                using TcpSocket socket = new(stream);
+            
+            using NetworkStream stream = new(shandler, ownsSocket: true);
+            using TcpSocket socket = new(stream);
 
-                while (true)
+            while (socket.CanRead)
+            {
+                try
                 {
                     var data = await socket.ReadUntilAsync([(byte)'.']);
                     var text = Encoding.UTF8.GetString([.. data]);
@@ -165,12 +169,19 @@ public class Tests
                     // Console.ResetColor();
                     await socket.WriteAsync(Encoding.UTF8.GetBytes($"<| {text.Trim()} |>\n"));
                 }
-            });
+                catch(Exception e)
+                {
+                    Console.WriteLine(e);
+                    break;
+                }
+            }
+
+            break;
         }
     }
 
-    // [Fact]
-    [Fact(Skip = "wont end")]
+    [Fact]
+    // [Fact(Skip = "long test")]
     [Trait("Catogory", "Network")]
     public async Task HttpEchoServer()
     {
@@ -180,57 +191,58 @@ public class Tests
         listener.Bind(address);
         listener.Listen(10);
 
-        Console.WriteLine("listening on " + address);
+        Console.WriteLine("http echo server listening on 2048");
+        // Console.WriteLine("listening on " + address);
 
         while (true)
         {
             var shandler = await listener.AcceptAsync();
             Console.WriteLine($"\e[32m{shandler.RemoteEndPoint}\e[0m");
 
-            var _ = Task.Run(async () =>
+            
+            using NetworkStream stream = new(shandler, ownsSocket: true);
+            using Http1Socket socket = new(new TcpSocket(stream));
+
+            Console.WriteLine("continuing");
+
+            var data = await socket.ReadClientAsync();
+            while (!data.BodyComplete) data = await socket.ReadClientAsync();
+
+            if (data.Headers.TryGetValue("accept-encoding", out List<string> encoding))
             {
-                using NetworkStream stream = new(shandler, ownsSocket: true);
-                using Http1Socket socket = new(new TcpSocket(stream));
-
-                Console.WriteLine("continuing");
-
-                var data = await socket.ReadClientAsync();
-                while (!data.BodyComplete) data = await socket.ReadClientAsync();
-
-                if (data.Headers.TryGetValue("accept-encoding", out List<string> encoding))
+                foreach (string s in encoding[0].Split(","))
                 {
-                    foreach (string s in encoding[0].Split(","))
+                    socket.Compression = s switch
                     {
-                        socket.Compression = s switch
-                        {
-                            "gzip" => Compression.Gzip,
-                            "deflate" => Compression.Deflate,
-                            "br" => Compression.Brotli,
-                            _ => Compression.None,
-                        };
-                        if (socket.Compression != Compression.None) break;
-                    }
-                    Console.WriteLine("using compression " + socket.Compression);
+                        "gzip" => Compression.Gzip,
+                        "deflate" => Compression.Deflate,
+                        "br" => Compression.Brotli,
+                        _ => Compression.None,
+                    };
+                    if (socket.Compression != Compression.None) break;
                 }
-                else
-                {
-                    Console.WriteLine("no compression");
-                }
+                Console.WriteLine("using compression " + socket.Compression);
+            }
+            else
+            {
+                Console.WriteLine("no compression");
+            }
 
-                Console.WriteLine(data);
-                Console.WriteLine($"received {data.Body.Count} bytes");
+            Console.WriteLine(data);
+            Console.WriteLine($"received {data.Body.Count} bytes");
 
-                var text = Encoding.UTF8.GetString([.. data.Body]);
+            var text = Encoding.UTF8.GetString([.. data.Body]);
 
-                Console.WriteLine($"received request with body[{text.Length}] \e[36m{text.Trim()}\e[0m");
-                await socket.CloseAsync(Encoding.UTF8.GetBytes($"<| {text.Trim()} |>\n"));
-                // await Task.Delay(100);
-            });
+            Console.WriteLine($"received request with body[{text.Length}] \e[36m{text.Trim()}\e[0m");
+            await socket.CloseAsync(Encoding.UTF8.GetBytes($"<| {text.Trim()} |>\n"));
+
+            break;
+            // await Task.Delay(100);
         }
     }
 
-    // [Fact]
-    [Fact(Skip = "wont end")]
+    [Fact]
+    // [Fact(Skip = "long test")]
     [Trait("Catogory", "Network")]
     public async Task WSEchoServer()
     {
@@ -240,76 +252,87 @@ public class Tests
         listener.Bind(address);
         listener.Listen(10);
 
-        Console.WriteLine("listening on " + address);
+        Console.WriteLine("ws echo server listening on 4096");
+        // Console.WriteLine("listening on " + address);
 
         while (true)
         {
             var shandler = await listener.AcceptAsync();
             Console.WriteLine($"\e[32m{shandler.RemoteEndPoint}\e[0m");
 
-            var _ = Task.Run(async () =>
+
+            try
             {
-                try
+                using NetworkStream stream = new(shandler, ownsSocket: true);
+                using Http1Socket socket = new(new TcpSocket(stream));
+
+                Console.WriteLine("continuing");
+
+                var client = await socket.ReadClientAsync();
+                while (!client.HeadersComplete) client = await socket.ReadClientAsync();
+
+                var ht = "";
+                Console.WriteLine("client headers");
+                Console.WriteLine(client.Headers);
+                foreach (var (h, vs) in client.Headers) foreach (var v in vs) ht += $"{h}: {v}\r\n";
+                Console.WriteLine(ht);
+
+                if (client.Headers.TryGetValue("upgrade", out List<string> up) && up[0] == "websocket")
                 {
-                    using NetworkStream stream = new(shandler, ownsSocket: true);
-                    using Http1Socket socket = new(new TcpSocket(stream));
-
-                    Console.WriteLine("continuing");
-
-                    var client = await socket.ReadClientAsync();
-                    while (!client.HeadersComplete) client = await socket.ReadClientAsync();
-
-                    var ht = "";
-                    Console.WriteLine("client headers");
-                    Console.WriteLine(client.Headers);
-                    foreach (var (h, vs) in client.Headers) foreach (var v in vs) ht += $"{h}: {v}\r\n";
-                    Console.WriteLine(ht);
-
-                    if (client.Headers.TryGetValue("upgrade", out List<string> up) && up[0] == "websocket")
+                    using var websocket = await socket.WebSocketAsync();
+                    var closed = false;
+                    while (!closed)
                     {
-                        using var websocket = await socket.WebSocketAsync();
-                        while (true)
+                        var frames = await websocket.IncomingAsync();
+                        Console.WriteLine("upgrade succesfull");
+                        foreach (var frame in frames)
                         {
-                            var frames = await websocket.IncomingAsync();
-                            Console.WriteLine("upgrade succesfull");
-                            foreach (var frame in frames)
+                            Console.WriteLine("received frame " + frame.type);
+                            Console.WriteLine("payload = " + frame.payload);
+                            Console.WriteLine("frame size = " + frame.raw.Length);
+
+                            var payload = frame.GetPayload();
+
+                            if (frame.type == WebSocketFrameType.Text || frame.type == WebSocketFrameType.Continuation)
                             {
-                                Console.WriteLine("received frame " + frame.type);
-                                Console.WriteLine("payload = " + frame.payload);
-                                Console.WriteLine("frame size = " + frame.raw.Length);
-
-                                var payload = frame.GetPayload();
-
-                                if (frame.type == WebSocketFrameType.Text || frame.type == WebSocketFrameType.Continuation)
-                                {
-                                    await websocket.SendTextAsync(payload);
-                                    Console.WriteLine("ehco payload " + Encoding.UTF8.GetString(payload));
-                                }
-                                else if (frame.type == WebSocketFrameType.Ping)
-                                {
-                                    await websocket.SendPingAsync(frame.GetPayload());
-                                    Console.WriteLine("pong");
-                                }
+                                await websocket.SendTextAsync(payload);
+                                Console.WriteLine("ehco payload " + Encoding.UTF8.GetString(payload));
+                            }
+                            else if (frame.type == WebSocketFrameType.Ping)
+                            {
+                                await websocket.SendPingAsync(frame.GetPayload());
+                                Console.WriteLine("pong");
+                            }
+                            else if (frame.type == WebSocketFrameType.ConnectionClose)
+                            {
+                                await websocket.SendCloseConnectionAsync(frame.GetPayload());
+                                Console.WriteLine("close");
+                                closed = true;
+                                break;
                             }
                         }
                     }
-                    else
-                    {
-                        Console.WriteLine("didnt wanna upgrade");
-                        await socket.CloseAsync("use websocket");
-                    }
-                    // await Task.Delay(100);
+
+                    break;
                 }
-                catch (Exception e)
+                else
                 {
-                    Console.WriteLine(e);
+                    Console.WriteLine("didnt wanna upgrade");
+                    await socket.CloseAsync("use websocket");
+                    await socket.DisposeAsync();
                 }
-            });
+                // await Task.Delay(100);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+
         }
     }
 
     [Fact]
-    // [Fact(Skip = "wont end")]
+    // [Fact(Skip = "long test")]
     [Trait("Catogory", "Network")]
     public async Task H2TestServer()
     {
@@ -319,53 +342,57 @@ public class Tests
         listener.Bind(address);
         listener.Listen(10);
 
-        Console.WriteLine("listening on " + address);
+        Console.WriteLine("h2 test server listening on 8192");
+
+        // Console.WriteLine("listening on " + address);
 
         while (true)
         {
             var shandler = await listener.AcceptAsync();
             Console.WriteLine($"\e[32m{shandler.RemoteEndPoint}\e[0m");
 
-            var _ = Task.Run(async () =>
+            
+            try
             {
-                try
+                using NetworkStream stream = new(shandler, ownsSocket: true);
+                using Http2Connection socket = new(new TcpSocket(stream), Http2Settings.Default());
+
+                Console.WriteLine("continuing");
+
+                await socket.InitAsync();
+                await socket.SendSettingsAsync(Http2Settings.Default());
+
+                while (socket.goaway == null)
                 {
-                    using NetworkStream stream = new(shandler, ownsSocket: true);
-                    using Http2Connection socket = new(new TcpSocket(stream), Http2Settings.Default());
-
-                    Console.WriteLine("continuing");
-
-                    await socket.InitAsync();
-                    await socket.SendSettingsAsync(Http2Settings.Default());
-
-                    while (socket.goaway == null)
+                    List<Http2Frame> frames = [await socket.ReadOneAsync()];
+                    foreach (var frame in frames)
                     {
-                        List<Http2Frame> frames = [await socket.ReadOneAsync()];
-                        foreach (var frame in frames) {
-                            Console.Write($"received \x1b[36m{frame.type}\x1b[0m [ ");
-                            foreach (byte b in frame.raw) Console.Write($"0x{b:X}, ");
-                            Console.WriteLine("]");
-                        }
-                        
-                        var opened = await socket.HandleAsync(frames);
-                        foreach (var st in opened)
-                        {
-                            Console.WriteLine($"stream opened {st}");
-                            // throw new Exception("test");
-                            await socket.SendHeadersAsync(st, false, [
-                                (":status"u8.ToArray(), "200"u8.ToArray()),
-                                ("content-type"u8.ToArray(), "text/plain"u8.ToArray()),
-                                ("content-length"u8.ToArray(), "11"u8.ToArray()),
-                            ]);
-                            await socket.SendDataAsync(st, true, "hello world"u8.ToArray());
-                        }
+                        Console.Write($"received \x1b[36m{frame.type}\x1b[0m [ ");
+                        foreach (byte b in frame.raw) Console.Write($"0x{b:X}, ");
+                        Console.WriteLine("]");
+                    }
+
+                    var opened = await socket.HandleAsync(frames);
+                    foreach (var st in opened)
+                    {
+                        Console.WriteLine($"stream opened {st}");
+                        // throw new Exception("test");
+                        await socket.SendHeadersAsync(st, false, [
+                            (":status"u8.ToArray(), "200"u8.ToArray()),
+                            ("content-type"u8.ToArray(), "text/plain"u8.ToArray()),
+                            ("content-length"u8.ToArray(), "11"u8.ToArray()),
+                        ]);
+                        await socket.SendDataAsync(st, true, "hello world"u8.ToArray());
                     }
                 }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                }
-            });
+
+                break;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+
         }
     }
 

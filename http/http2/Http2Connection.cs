@@ -250,6 +250,9 @@ public class Http2Connection(IDualSocket socket, Http2Settings settings) : IDisp
                         stream.body.AddRange(frame.Payload);
                         stream.end_stream = (frame.flags & 1) != 0;
                         streams[frame.streamID] = stream;
+                        
+                        SendWindowUpdate(0, frame.Payload.Length);
+                        SendWindowUpdate(frame.streamID, frame.Payload.Length);
                     }
                     else
                     {
@@ -373,6 +376,9 @@ public class Http2Connection(IDualSocket socket, Http2Settings settings) : IDisp
                         stream.body.AddRange(frame.Payload);
                         stream.end_stream = (frame.flags & 1) != 0;
                         streams[frame.streamID] = stream;
+
+                        await SendWindowUpdateAsync(0, frame.Payload.Length);
+                        await SendWindowUpdateAsync(frame.streamID, frame.Payload.Length);
                     }
                     else
                     {
@@ -824,27 +830,25 @@ public class Http2Connection(IDualSocket socket, Http2Settings settings) : IDisp
         try
         {
             // if (socket.CanWrite && goaway == null) SendGoaway(0, 0x2, "Dispose called before connection closed"u8.ToArray());
-            if (socket.CanWrite && goaway == null) SendGoaway(0, 0x0, []);
+            if (socket.CanWrite) SendGoaway(0, 0x0, []);
         }
-        catch (Exception)
+        finally
         {
-            //
+            socket.Dispose();
         }
 
-        socket.Dispose();
     }
     public async ValueTask DisposeAsync()
     {
         try
         {
             // if (socket.CanWrite && goaway == null) await SendGoawayAsync(0, 0x2, "Dispose called before connection closed"u8.ToArray());
-            if (socket.CanWrite && goaway == null) await SendGoawayAsync(0, 0x0, []);
+            if (socket.CanWrite) await SendGoawayAsync(0, 0x0, []);
         }
-        catch (Exception)
+        finally
         {
-            //
+            await socket.DisposeAsync();
         }
 
-        await socket.DisposeAsync();
     }
 }

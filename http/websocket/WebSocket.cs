@@ -66,4 +66,9 @@ public class WebSocket(IDualSocket socket) : IDisposable, IAsyncDisposable
     public void SendPong(byte[] payload) => socket.Write(WebSocketFrame.Create(true, 10, payload));
     public async Task SendPongAsync(string payload) => await SendPongAsync(Encoding.UTF8.GetBytes(payload));
     public async Task SendPongAsync(byte[] payload) => await socket.WriteAsync(WebSocketFrame.Create(true, 10, payload));
+
+    public void SendCloseConnection(string payload) => SendCloseConnection(Encoding.UTF8.GetBytes(payload));
+    public void SendCloseConnection(byte[] payload) => socket.Write(WebSocketFrame.Create(true, 8, payload));
+    public async Task SendCloseConnectionAsync(string payload) => await SendCloseConnectionAsync(Encoding.UTF8.GetBytes(payload));
+    public async Task SendCloseConnectionAsync(byte[] payload) => await socket.WriteAsync(WebSocketFrame.Create(true, 8, payload));
 }
