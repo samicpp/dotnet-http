@@ -1,9 +1,10 @@
 namespace Samicpp.Http.Debug;
 
+using System.Text;
 using Samicpp.Http;
 
 
-// TODO: add logging on method invocation
+// TODO: add more options
 public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
 {
     public bool IsHttps { get => true; }
@@ -14,28 +15,66 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
     public bool IsClosed { get; set; }
     public bool HeadSent { get; set; }
 
-    public int Status { get; set; } = 200;
-    public string StatusMessage { get; set; } = "OK";
-    public Compression Compression { get; set; } = Compression.None;
+    public int Status { get; set { field = value; Console.WriteLine($"set status to {value}"); } } = 200;
+    public string StatusMessage { get; set { field = value; Console.WriteLine($"set status message to {value}"); } } = "OK";
+    public Compression Compression { get; set { field = value; Console.WriteLine($"set compression to {value}"); } } = Compression.None;
 
     private readonly Dictionary<string, List<string>> headers = new() { { "Connection", ["close"] } };
-    public void SetHeader(string name, string value) => headers[name] = [value];
+    public void SetHeader(string name, string value) {
+        if (!HeadSent)
+        {
+            Console.WriteLine($"[ ] set header {name}: {value}");
+            headers[name] = [value];
+        }
+        else
+        {
+            Console.WriteLine($"\x1b[31m[X]\x1b[0m setting header {name} after head sent");
+        }
+    }
     public void AddHeader(string name, string value)
     {
-        if (headers.TryGetValue(name, out List<string>? ls)) ls.Add(value);
-        else headers[name] = [value];
+        if (!HeadSent)
+        {
+            Console.WriteLine($"[ ] adding {value} to header {name}");
+            if (headers.TryGetValue(name, out List<string>? ls)) ls.Add(value);
+            else headers[name] = [value];
+        }
+        else
+        {
+            Console.WriteLine($"\x1b[31m[X]\x1b[0m adding to header {name} after head sent");
+        }
     }
     public List<string> DelHeader(string name)
     {
-        var head = headers[name];
-        if (head == null) return [];
-        headers.Remove(name);
-        return head;
+        if (!HeadSent)
+        {
+            Console.WriteLine($"\x1b[33m[~]\x1b[0m removing header {name}");
+            var head = headers[name];
+            if (head == null)
+            {
+                Console.WriteLine($"\x1b[31m[X]\x1b[0m attempted to remove nonexistent header {name}");
+            }
+            else
+            {
+                headers.Remove(name);
+            }
+            return head ?? [];
+        }
+        else
+        {
+            Console.WriteLine($"\x1b[31m[X]\x1b[0m deleting header {name} after head sent");
+            return [];
+        }
+        
     }
 
-    public async Task<IHttpClient> ReadClientAsync() => ReadClient();
+    public Task<IHttpClient> ReadClientAsync() => Task.FromResult(ReadClient());
     public IHttpClient ReadClient()
     {
+        if (!client.HeadersComplete && !client.BodyComplete) Console.WriteLine("\x1b[32m[*]\x1b[0m reading client");
+        else if (!client.BodyComplete) Console.WriteLine("\x1b[32m[*]\x1b[0m reading client again for complete body");
+        else Console.WriteLine("\x1b[31m[X]\x1b[0m reading when client already complete");
+
         // client.Body = "HttpClient.Body"u8.ToArray().ToList();
         // client.HeadersComplete = true;
         // client.BodyComplete = true;
@@ -47,8 +86,11 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
         // };
 
         client.Body = _client.Body;
+
+        if (client.HeadersComplete) client.BodyComplete = true;
+        else client.BodyComplete = false;
+
         client.HeadersComplete = true;
-        client.BodyComplete = true;
         client.Version = _client.Version;
 
         client.Headers = [];
@@ -57,36 +99,66 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
         return client;
     }
 
-    void SendHead() { }
-    async Task SendHeadAsync() { }
+    // void SendHead() { }
+    // async Task SendHeadAsync() { }
 
-    public void Close(string data) { }
-    public void Close(byte[] data) { }
+    public void Close(string data) => Close(Encoding.UTF8.GetBytes(data));
+    public void Close(byte[] data)
+    {
+        if (!client.BodyComplete) Console.WriteLine("\x1b[33m[~]\x1b[0m closing connection before fully read client");
+        if (!IsClosed) 
+        {
+            Console.WriteLine($"\x1b[32m[*]\x1b[0m closing connection with {data.Length} bytes");
+            HeadSent = true;
+            IsClosed = true;
+        }
+        else
+        {
+            Console.WriteLine("\x1b[31m[X]\x1b[0m attempted closing connection when already closed");
+        }
+    }
 
-    public async Task CloseAsync(string data) { }
-    public async Task CloseAsync(byte[] data) { }
+    public Task CloseAsync(string data) { Close(data); return Task.CompletedTask; }
+    public Task CloseAsync(byte[] data) { Close(data); return Task.CompletedTask; }
 
-    public void Write(string data) { }
-    public void Write(byte[] data) { }
+    public void Write(string data) => Write(Encoding.UTF8.GetBytes(data));
+    public void Write(byte[] data)
+    {
+        if (!client.BodyComplete) Console.WriteLine("\x1b[33m[~]\x1b[0m writing to connection before fully read client");
+        if (!IsClosed) 
+        {
+            Console.WriteLine($"\x1b[32m[*]\x1b[0m writing to connection with {data.Length} bytes");
+            HeadSent = true;
+        }
+        else
+        {
+            Console.WriteLine("\x1b[31m[X]\x1b[0m attempted writing to connection when already closed");
+        }
+    }
 
-    public async Task WriteAsync(string data) { }
-    public async Task WriteAsync(byte[] data) { }
+    public Task WriteAsync(string data) { Write(data); return Task.CompletedTask; }
+    public Task WriteAsync(byte[] data) { Write(data); return Task.CompletedTask; }
 
     public WebSocket.WebSocket WebSocket()
     {
         throw new NotImplementedException("Cant start websocket in fake socket");
     }
-    public async Task<WebSocket.WebSocket> WebSocketAsync()
+    public Task<WebSocket.WebSocket> WebSocketAsync()
     {
         throw new NotImplementedException("Cant start websocket in fake socket");
     }
 
     public void Dispose()
     {
-        //
+        if (!IsClosed) Console.WriteLine("\x1b[31m[X]\x1b[0m socket disposed before closing connection");
+        else Console.WriteLine($"\x1b[32m[*]\x1b[0m disposed fake socket");
+        GC.SuppressFinalize(this);
     }
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+    
+    ~FakeHttpSocket()
     {
-        //
+        Console.WriteLine("\x1b[31m[X]\x1b[0m fake socket not disposed");
+        if (!IsClosed) Console.WriteLine("\x1b[31m[X]\x1b[0m socket dropped before closing connection");
     }
 }

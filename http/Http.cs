@@ -147,8 +147,8 @@ public class HttpClient : IHttpClient
     public string Version { get; set; } = "VER";
     public List<byte> Body { get; set; } = [];
 
-    public bool HeadersComplete { get; set; }
-    public bool BodyComplete { get; set; }
+    public bool HeadersComplete { get; set; } = false;
+    public bool BodyComplete { get; set; } = false;
 }
 
 public class HttpException(string? message = null, Exception? source = null) : Exception(message)

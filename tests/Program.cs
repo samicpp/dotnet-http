@@ -15,6 +15,8 @@ using Samicpp.Http.Http1;
 using Samicpp.Http.WebSocket;
 using System.Collections.Generic;
 using Http2Connection = Samicpp.Http.Http2.Http2Session;
+using Samicpp.Http.Debug;
+using System.Linq;
 
 public class Tests
 {
@@ -22,13 +24,6 @@ public class Tests
     public void test1()
     {
         Console.WriteLine("run test");
-    }
-
-    [Fact]
-    public void test2()
-    {
-        // FakeHttpSocket sock = new();
-
     }
 
     [Fact]
@@ -136,6 +131,97 @@ public class Tests
     }*/
 
     [Fact]
+    public void FakeSocketCorrect()
+    {
+        HttpClient sourceClient = new();
+        sourceClient.Body = "client body here"u8.ToArray().ToList();
+        sourceClient.Method = "METHOD";
+        sourceClient.Version = "FakeSocket";
+        sourceClient.Path = "/file.html";
+        sourceClient.Host = "fake.localhost:12345";
+        sourceClient.Headers = new()
+        {
+            { "Host", [sourceClient.Host] },
+            { "User-Agent", ["curl/8.16.0"] },
+            { "Accept", ["*/*"] },
+            { "Content-Type", ["text/plain"] },
+            { "Header", ["value"] },
+        };
+
+        using FakeHttpSocket sock = new(sourceClient);
+
+
+        var client = sock.ReadClient();
+        while (!client.BodyComplete) client = sock.ReadClient();
+
+        // Console.WriteLine("fake client sent headers");
+        // foreach (var (h, vs) in client.Headers) foreach (var v in vs) Console.WriteLine($"{h}: {v}");
+        // Console.WriteLine("");
+
+        sock.SetHeader("Content-Type", "text/plain");
+        sock.SetHeader("Server", "SomeServerName");
+
+        sock.AddHeader("Set-Cookie", "sessionId=abc123; Path=/; HttpOnly; Secure; SameSite=Strict");
+        sock.AddHeader("Set-Cookie", "theme=dark; Path=/; Max-Age=3600");
+        sock.AddHeader("Set-Cookie", "lang=en-US; Path=/; Expires=Wed, 22 Oct 2025 20:00:00 GMT");
+
+        sock.Close("Hello World");
+    }
+
+    [Fact]
+    public void FakeSocketWrong()
+    {
+        HttpClient sourceClient = new();
+        sourceClient.Body = "client body here"u8.ToArray().ToList();
+        sourceClient.Method = "METHOD";
+        sourceClient.Version = "FakeSocket";
+        sourceClient.Path = "/file.html";
+        sourceClient.Host = "fake.localhost:12345";
+        sourceClient.Headers = new()
+        {
+            { "Host", [sourceClient.Host] },
+            { "User-Agent", ["curl/8.16.0"] },
+            { "Accept", ["*/*"] },
+            { "Content-Type", ["text/plain"] },
+            { "Header", ["value"] },
+        };
+
+
+        void Wrapper()
+        {
+            FakeHttpSocket sock = new(sourceClient);
+
+            var client = sock.ReadClient();
+            while (!client.BodyComplete) client = sock.ReadClient();
+            sock.ReadClient(); sock.ReadClient();
+
+            sock.SetHeader("Content-Type", "text/plain");
+            sock.SetHeader("Server", "SomeServerName");
+
+            sock.Close("Hello World");
+
+            sock.AddHeader("Set-Cookie", "sessionId=abc123; Path=/; HttpOnly; Secure; SameSite=Strict");
+            sock.AddHeader("Set-Cookie", "theme=dark; Path=/; Max-Age=3600");
+            sock.AddHeader("Set-Cookie", "lang=en-US; Path=/; Expires=Wed, 22 Oct 2025 20:00:00 GMT");
+
+            sock.Close("Hello again");
+            sock.Write("Hello");
+        }
+        Wrapper();
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
+    [Fact]
+    public void FakeSocketError()
+    {
+        HttpClient sourceClient = new();
+
+        using FakeHttpSocket sock = new(sourceClient);
+    }
+
+    [Fact]
     // [Fact(Skip = "long test")]
     [Trait("Category", "Network")]
     public async Task TcpEchoServer()
@@ -183,7 +269,7 @@ public class Tests
 
     [Fact]
     // [Fact(Skip = "long test")]
-    [Trait("Catogory", "Network")]
+    [Trait("Category", "Network")]
     public async Task HttpEchoServer()
     {
         IPEndPoint address = new(IPAddress.Parse("0.0.0.0"), 2048);
@@ -244,7 +330,7 @@ public class Tests
 
     [Fact]
     // [Fact(Skip = "long test")]
-    [Trait("Catogory", "Network")]
+    [Trait("Category", "Network")]
     public async Task WSEchoServer()
     {
         IPEndPoint address = new(IPAddress.Parse("0.0.0.0"), 4096);
@@ -334,7 +420,7 @@ public class Tests
 
     [Fact]
     // [Fact(Skip = "long test")]
-    [Trait("Catogory", "Network")]
+    [Trait("Category", "Network")]
     public async Task H2TestServer()
     {
         IPEndPoint address = new(IPAddress.Parse("0.0.0.0"), 8192);
@@ -412,7 +498,7 @@ public class Tests
     
     [Fact]
     // [Fact(Skip = "long test")]
-    [Trait("Catogory", "Network")]
+    [Trait("Category", "Network")]
     public async Task H2CPUgrade()
     {
         IPEndPoint address = new(IPAddress.Parse("0.0.0.0"), 16384);

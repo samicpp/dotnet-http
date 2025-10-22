@@ -49,7 +49,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         return head;
     }
 
-    public async Task<IHttpClient> ReadClientAsync() => ReadClient();
+    public Task<IHttpClient> ReadClientAsync() => Task.FromResult(ReadClient());
     public IHttpClient ReadClient()
     {
         var stream = conn.streams[streamID] ?? throw new Http2Exception.StreamDoesntExist("huh?");
