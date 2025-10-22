@@ -39,7 +39,7 @@ public readonly struct Http2Frame(
                 byte[] frame = new byte[length];
                 bytes[pos..length].CopyTo(frame);
                 frames.Add(frame);
-                pos += 9 + length;
+                pos += length;
             }
         }
         catch (Exception)
@@ -56,9 +56,9 @@ public readonly struct Http2Frame(
         try
         {
             int length = bytes[0] << 16 | bytes[1] << 8 | bytes[2];
-            int streamID = bytes[3] << 24 | bytes[4] << 16 | bytes[5] << 8 | bytes[6];
-            byte opcode = bytes[7];
-            byte flags = bytes[8];
+            byte opcode = bytes[3];
+            byte flags = bytes[4];
+            int streamID = bytes[5] << 24 | bytes[6] << 16 | bytes[7] << 8 | bytes[8];
 
             int offset = 0;
 
@@ -78,7 +78,16 @@ public readonly struct Http2Frame(
 
             var type = opcode switch
             {
-                < 10 => (Http2FrameType)opcode,
+                0 => Http2FrameType.Data,
+                1 => Http2FrameType.Headers,
+                2 => Http2FrameType.Priority,
+                3 => Http2FrameType.RstStream,
+                4 => Http2FrameType.Settings,
+                5 => Http2FrameType.PushPromise,
+                6 => Http2FrameType.Ping,
+                7 => Http2FrameType.Goaway,
+                8 => Http2FrameType.WindowUpdate,
+                9 => Http2FrameType.Continuation,
                 _ => Http2FrameType.Unknown,
             };
 
@@ -144,6 +153,7 @@ public readonly struct Http2Settings(int? headerTableSize, int? enablePush, int?
     public readonly int? max_frame_size = maxFrameSize;                  //  0x5
     public readonly int? max_header_list_size = maxHeaderListSize;       //  0x6
 
+    public static Http2Settings Default() => new(4096, 1, null, 65535, 16384, null);
     public static Http2Settings? Parse(Span<byte> bytes)
     {
         if ((bytes.Length % 6) != 0) return null;

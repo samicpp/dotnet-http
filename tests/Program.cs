@@ -63,22 +63,27 @@ public class Tests
         // 2 5
         Http.Http2.Hpack.Encoder hpacke = new(4096);
         var enc = hpacke.Encode([
-            new HeaderEntry("indexed"u8.ToArray(),"header"u8.ToArray()),
-            new HeaderEntry("not indexed"u8.ToArray(),"header"u8.ToArray()),
+            new HeaderEntry(":method"u8.ToArray(), "GET"u8.ToArray()),
+            new HeaderEntry(":path"u8.ToArray(), "/index.html"u8.ToArray()),
+            new HeaderEntry("indexed"u8.ToArray(),"header"u8.ToArray(), true),
+            new HeaderEntry("not"u8.ToArray(),"indexed"u8.ToArray(), false),
+            new HeaderEntry("never"u8.ToArray(),"indexed"u8.ToArray(), false, true),
+            new HeaderEntry("huffman"u8.ToArray(),"encoded"u8.ToArray(), false, false, true),
+            new HeaderEntry("not huffman"u8.ToArray(),"encoded"u8.ToArray(), false, false, false),
         ]);
 
         Console.Write("hpack encoded = [ ");
         foreach (var b in enc) Console.Write($"0x{b:X}, ");
         Console.WriteLine("]");
     }
-    
+
     [Fact]
     public void hpacker()
     {
         // 2 5
         Http.Http2.Hpack.Decoder hpackd = new(4096);
         var dec = hpackd.Decode([0x82, 0x85, 0x40, 0x85, 0x35, 0x52, 0x17, 0xC9, 0x64, 0x85, 0x9C, 0xA3, 0x90, 0xB6, 0x7F, 0x40, 0x88, 0xA8, 0xE9, 0x50, 0xD5, 0x48, 0x5F, 0x25, 0x93, 0x85, 0x9C, 0xA3, 0x90, 0xB6, 0x7F,]);
-        foreach(var (h,v) in dec)
+        foreach (var (h, v) in dec)
         {
             var header = Encoding.UTF8.GetString(h);
             var value = Encoding.UTF8.GetString(v);
@@ -294,6 +299,67 @@ public class Tests
                         await socket.CloseAsync("use websocket");
                     }
                     // await Task.Delay(100);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+            });
+        }
+    }
+
+    [Fact]
+    // [Fact(Skip = "wont end")]
+    [Trait("Catogory", "Network")]
+    public async Task H2TestServer()
+    {
+        IPEndPoint address = new(IPAddress.Parse("0.0.0.0"), 8192);
+        using Socket listener = new(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+        listener.Bind(address);
+        listener.Listen(10);
+
+        Console.WriteLine("listening on " + address);
+
+        while (true)
+        {
+            var shandler = await listener.AcceptAsync();
+            Console.WriteLine($"\e[32m{shandler.RemoteEndPoint}\e[0m");
+
+            var _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using NetworkStream stream = new(shandler, ownsSocket: true);
+                    using Http2Connection socket = new(new TcpSocket(stream), Http2Settings.Default());
+
+                    Console.WriteLine("continuing");
+
+                    await socket.InitAsync();
+                    await socket.SendSettingsAsync(Http2Settings.Default());
+
+                    while (socket.goaway == null)
+                    {
+                        List<Http2Frame> frames = [await socket.ReadOneAsync()];
+                        foreach (var frame in frames) {
+                            Console.Write($"received \x1b[36m{frame.type}\x1b[0m [ ");
+                            foreach (byte b in frame.raw) Console.Write($"0x{b:X}, ");
+                            Console.WriteLine("]");
+                        }
+                        
+                        var opened = await socket.HandleAsync(frames);
+                        foreach (var st in opened)
+                        {
+                            Console.WriteLine($"stream opened {st}");
+                            // throw new Exception("test");
+                            await socket.SendHeadersAsync(st, false, [
+                                (":status"u8.ToArray(), "200"u8.ToArray()),
+                                ("content-type"u8.ToArray(), "text/plain"u8.ToArray()),
+                                ("content-length"u8.ToArray(), "11"u8.ToArray()),
+                            ]);
+                            await socket.SendDataAsync(st, true, "hello world"u8.ToArray());
+                        }
+                    }
                 }
                 catch (Exception e)
                 {

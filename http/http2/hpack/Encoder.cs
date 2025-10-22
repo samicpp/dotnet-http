@@ -1,10 +1,11 @@
 namespace Samicpp.Http.Http2.Hpack;
 
 
-public struct HeaderEntry(byte[] name, byte[] value, bool index = true, bool never = false)
+public struct HeaderEntry(byte[] name, byte[] value, bool index = true, bool never = false, bool? useHuff = null)
 {
     public bool index = index;
     public bool never = never;
+    public bool? useHuffman = useHuff;
 
     public byte[] name = name;
     public byte[] value = value;
@@ -37,11 +38,11 @@ public class Encoder(int headerTableSize)
             stream.WriteByte((byte)remainder);
         }
     }
-    void WriteString(Stream stream, byte[] str)
+    void WriteString(Stream stream, byte[] str, bool? useHuff = null)
     {
         var huff = huffman.Encode(str);
 
-        if (str.Length > huff.Count)
+        if (useHuff == true || str.Length > huff.Count)
         {
             WriteInteger(stream, huff.Count, 7, 0x80);
             stream.Write(huff.ToArray());
@@ -57,38 +58,38 @@ public class Encoder(int headerTableSize)
     {
         WriteInteger(stream, index, 7, 0x80);
     }
-    void WriteIndexedName(Stream stream, int index, byte[] value)
+    void WriteIndexedName(Stream stream, int index, byte[] value, bool? useHuff = null)
     {
         WriteInteger(stream, index, 6, 0x40);
-        WriteString(stream, value);
+        WriteString(stream, value, useHuff);
     }
-    void WriteNewIndexed(Stream stream, byte[] name, byte[] value)
+    void WriteNewIndexed(Stream stream, byte[] name, byte[] value, bool? useHuff = null)
     {
         WriteInteger(stream, 0, 6, 0x40);
-        WriteString(stream, name);
-        WriteString(stream, value);
+        WriteString(stream, name, useHuff);
+        WriteString(stream, value, useHuff);
     }
-    void WriteNoIndex(Stream stream, int index, byte[] value)
+    void WriteNoIndex(Stream stream, int index, byte[] value, bool? useHuff = null)
     {
         WriteInteger(stream, index, 4, 0x00);
-        WriteString(stream, value);
+        WriteString(stream, value, useHuff);
     }
-    void WriteNewNoIndex(Stream stream, byte[] name, byte[] value)
+    void WriteNewNoIndex(Stream stream, byte[] name, byte[] value, bool? useHuff = null)
     {
         WriteInteger(stream, 0, 4, 0x00);
-        WriteString(stream, name);
-        WriteString(stream, value);
+        WriteString(stream, name, useHuff);
+        WriteString(stream, value, useHuff);
     }
-    void WriteNeverIndex(Stream stream, int index, byte[] value)
+    void WriteNeverIndex(Stream stream, int index, byte[] value, bool? useHuff = null)
     {
         WriteInteger(stream, index, 4, 0x10);
-        WriteString(stream, value);
+        WriteString(stream, value, useHuff);
     }
-    void WriteNewNeverIndex(Stream stream, byte[] name, byte[] value)
+    void WriteNewNeverIndex(Stream stream, byte[] name, byte[] value, bool? useHuff = null)
     {
         WriteInteger(stream, 0, 4, 0x10);
-        WriteString(stream, name);
-        WriteString(stream, value);
+        WriteString(stream, name, useHuff);
+        WriteString(stream, value, useHuff);
     }
 
     int? FindExactHeader(byte[] name, byte[] value)
@@ -186,23 +187,23 @@ public class Encoder(int headerTableSize)
 
             if (index != null && header.index)
             {
-                WriteIndexedName(stream, (int)index, header.value);
+                WriteIndexedName(stream, (int)index, header.value, header.useHuffman);
                 dynamic.AddHeader(header.name, header.value);
             }
             else if (index != null && !header.index)
             {
-                if (header.never) WriteNeverIndex(stream, (int)index, header.value);
-                else WriteNoIndex(stream, (int)index, header.value);
+                if (header.never) WriteNeverIndex(stream, (int)index, header.value, header.useHuffman);
+                else WriteNoIndex(stream, (int)index, header.value, header.useHuffman);
             }
             else if (header.index)
             {
-                WriteNewIndexed(stream, header.name, header.value);
+                WriteNewIndexed(stream, header.name, header.value, header.useHuffman);
                 dynamic.AddHeader(header.name, header.value);
             }
             else
             {
-                if (header.never) WriteNewNeverIndex(stream, header.name, header.value);
-                else WriteNewNoIndex(stream, header.name, header.value);
+                if (header.never) WriteNewNeverIndex(stream, header.name, header.value, header.useHuffman);
+                else WriteNewNoIndex(stream, header.name, header.value, header.useHuffman);
             }
         }
 
