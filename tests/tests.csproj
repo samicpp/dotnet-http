@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../http/dotnet-http.csproj" />
+    <ProjectReference Include="../http/http.csproj" />
   </ItemGroup>
 
 </Project>
