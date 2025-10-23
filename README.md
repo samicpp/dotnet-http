@@ -32,6 +32,13 @@ HTTP/1.1 echo server
 using Samicpp.Http;
 using Samicpp.Http.Http1;
 
+using System;
+using System.Net;
+using System.Text;
+using System.Net.Sockets;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+
 // you have to either implement `Samicpp.Http.IDualSocket` yourself
 // or use the abstract class `Samicpp.Http.ANetSocket`
 public class TcpSocket(NetworkStream stream) : ANetSocket
@@ -126,6 +133,13 @@ HTTP/2 echo server
 ```c#
 using Samicpp.Http;
 using Samicpp.Http.Http2;
+
+using System;
+using System.Net;
+using System.Text;
+using System.Net.Sockets;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 // you have to either implement `Samicpp.Http.IDualSocket` yourself
 // or use the abstract class `Samicpp.Http.ANetSocket`
