@@ -1,4 +1,4 @@
-namespace Samicpp.Tests;
+namespace Samicpp.Http.Tests;
 
 using System;
 using System.Threading.Tasks;
