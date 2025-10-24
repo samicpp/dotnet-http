@@ -14,6 +14,7 @@ In the future I might make another library that uses this one to support a ready
 
 ## TODO / Features
 - [x] allow both sync and async code
+- [x] implement HTTP/0.9 (utterly useless, for educational purposes)
 - [x] implement HTTP/1.1
 - [x] implement HPACK
 - [x] implement HTTP/2
