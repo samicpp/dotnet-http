@@ -220,6 +220,7 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
     }
 
 
+    public void Close() => Close([]);
     public void Close(string text) => Close(Encoding.UTF8.GetBytes(text));
     public void Close(byte[] bytes)
     {
@@ -240,6 +241,7 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
         }
     }
 
+    public async Task CloseAsync() => await CloseAsync([]);
     public async Task CloseAsync(string text) => await CloseAsync(Encoding.UTF8.GetBytes(text));
     public async Task CloseAsync(byte[] bytes)
     {

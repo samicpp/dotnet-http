@@ -102,6 +102,7 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
     // void SendHead() { }
     // async Task SendHeadAsync() { }
 
+    public void Close() => Close([]);
     public void Close(string data) => Close(Encoding.UTF8.GetBytes(data));
     public void Close(byte[] data)
     {
@@ -118,6 +119,7 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
         }
     }
 
+    public Task CloseAsync() { Close([]); return Task.CompletedTask; }
     public Task CloseAsync(string data) { Close(data); return Task.CompletedTask; }
     public Task CloseAsync(byte[] data) { Close(data); return Task.CompletedTask; }
 

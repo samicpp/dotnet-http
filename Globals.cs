@@ -17,6 +17,7 @@ public interface IHttpSocket
 public interface ISyncHttpSocket : IHttpSocket, IDisposable
 {
     IHttpClient ReadClient();
+    void Close();
     void Close(string text);
     void Close(byte[] bytes);
     void Write(string text);
@@ -26,6 +27,7 @@ public interface ISyncHttpSocket : IHttpSocket, IDisposable
 public interface IAsyncHttpSocket: IHttpSocket, IAsyncDisposable
 {
     Task<IHttpClient> ReadClientAsync();
+    Task CloseAsync();
     Task CloseAsync(string text);
     Task CloseAsync(byte[] bytes);
     Task WriteAsync(string text);
