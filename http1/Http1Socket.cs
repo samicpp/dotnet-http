@@ -77,7 +77,7 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
 
             client.Method = mpv[0];
             client.Path = mpv[1];
-            client.Version = "HTTP/1.1";
+            client.Version = "HTTP/1.1"; // = mpv[2];
 
             foreach (var header in lines[1..])
             {
@@ -86,7 +86,8 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
                 var h = hv[0].Trim().ToLower();
                 var v = hv[1].Trim();
 
-                if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
+                if (h == "host") client.Host = v;
+                else if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
                 else client.Headers[h] = [v];
             }
 
@@ -136,6 +137,7 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
 
             client.Method = mpv[0];
             client.Path = mpv[1];
+            client.Version = "HTTP/1.1"; // = mpv[2];
 
             foreach (var header in lines[1..])
             {
@@ -144,7 +146,8 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
                 var h = hv[0].Trim().ToLower();
                 var v = hv[1].Trim();
 
-                if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
+                if (h == "host") client.Host = v;
+                else if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
                 else client.Headers[h] = [v];
             }
 
