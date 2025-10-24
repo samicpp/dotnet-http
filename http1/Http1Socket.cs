@@ -67,13 +67,14 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
 
     public IHttpClient ReadClient()
     {
-        bool justReadHeaders = false; // technically redundant due to `else if`
         if (!client.HeadersComplete)
         {
-            var buff = socket.ReadUntil([10, 10]);
+            var buff = socket.ReadUntil([13, 10, 13, 10],[10, 10]);
             var text = Encoding.UTF8.GetString([.. buff]);
             var lines = text.Split("\n");
             var mpv = lines[0].Split(" ", 3);
+
+            if (mpv.Length < 3) { client.IsValid = false; goto end; }
 
             client.Method = mpv[0];
             client.Path = mpv[1];
@@ -83,6 +84,9 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
             {
                 if (string.IsNullOrWhiteSpace(header)) continue;
                 var hv = header.Split(":", 2);
+
+                if (mpv.Length < 2) { client.IsValid = false; goto end; }
+
                 var h = hv[0].Trim().ToLower();
                 var v = hv[1].Trim();
 
@@ -91,8 +95,8 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
                 else client.Headers[h] = [v];
             }
 
-            client.HeadersComplete =
-            justReadHeaders = true;
+            end:
+            client.HeadersComplete = true;
         }
         else if (!client.BodyComplete)
         {
@@ -102,7 +106,7 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
                 client.Body = [.. socket.ReadCertain(length)];
                 client.BodyComplete = true;
             }
-            else if (!justReadHeaders && client.Headers.TryGetValue("transfer-encoding", out List<string>? te) && te[0] == "chunked")
+            else if (client.Headers.TryGetValue("transfer-encoding", out List<string>? te) && te[0] == "chunked")
             {
                 var len = socket.ReadUntil([13, 10]);
                 var slen = Encoding.UTF8.GetString([.. len]);
@@ -127,13 +131,14 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
     }
     public async Task<IHttpClient> ReadClientAsync()
     {
-        bool justReadHeaders = false; // technically unnececary due to `else if`
         if (!client.HeadersComplete)
         {
-            var buff = await socket.ReadUntilAsync([10, 10]);
+            var buff = await socket.ReadUntilAsync([13, 10, 13, 10],[10, 10]);
             var text = Encoding.UTF8.GetString([.. buff]);
             var lines = text.Split("\n");
             var mpv = lines[0].Split(" ", 3);
+
+            if (mpv.Length < 3) { client.IsValid = false; goto end; }
 
             client.Method = mpv[0];
             client.Path = mpv[1];
@@ -143,6 +148,9 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
             {
                 if (string.IsNullOrWhiteSpace(header)) continue;
                 var hv = header.Split(":", 2);
+
+                if (mpv.Length < 2) { client.IsValid = false; goto end;}
+
                 var h = hv[0].Trim().ToLower();
                 var v = hv[1].Trim();
 
@@ -150,19 +158,19 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
                 else if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
                 else client.Headers[h] = [v];
             }
-
-            client.HeadersComplete =
-            justReadHeaders = true;
+            
+            end:
+            client.HeadersComplete = true;
         }
         else if (!client.BodyComplete)
         {
             if (client.Headers.TryGetValue("content-length", out List<string>? slength))
             {
                 var _ = int.TryParse(slength[0], out int length);
-                client.Body = [.. socket.ReadCertain(length)];
+                client.Body = [.. await socket.ReadCertainAsync(length)];
                 client.BodyComplete = true;
             }
-            else if (!justReadHeaders && client.Headers.TryGetValue("transfer-encoding", out List<string>? te) && te[0] == "chunked")
+            else if (client.Headers.TryGetValue("transfer-encoding", out List<string>? te) && te[0] == "chunked")
             {
                 var len = await socket.ReadUntilAsync([13, 10]);
                 var slen = Encoding.UTF8.GetString([.. len]);

@@ -36,6 +36,7 @@ public interface IDualHttpSocket : IAsyncHttpSocket, ISyncHttpSocket { }
 
 public interface IHttpClient
 {
+    public bool IsValid { get; }
     public Dictionary<string, List<string>> Headers { get; }
     public string Host { get; }
     public string Method { get; }

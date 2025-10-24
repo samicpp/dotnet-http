@@ -184,6 +184,7 @@ public abstract class ANetSocket : IDualSocket
 
 public class HttpClient : IHttpClient
 {
+    public bool IsValid { get; set; } = true;
     public Dictionary<string, List<string>> Headers { get; set; } = [];
     public string Host { get; set; } = "about:blank";
     public string Method { get; set; } = "NILL";
