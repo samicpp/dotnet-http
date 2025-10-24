@@ -97,6 +97,7 @@ public abstract class ANetSocket : IDualSocket
 
         return true;
     }
+
     public List<byte> ReadUntil(byte[] stop)
     {
         List<byte> total = [];
@@ -108,13 +109,35 @@ public abstract class ANetSocket : IDualSocket
 
             if (s <= 0) throw new HttpException.ConnectionClosed(null);
 
-            total.AddRange(buff[..s]);
+            total.Add(buff[0]);
+            // total.AddRange(buff[..s]);
             if (total.Count < stop.Length) continue;
 
             if (EndsWith(total, stop)) break;
         }
 
         return total;
+    }
+    public List<byte> ReadUntil(params byte[][] stops)
+    {
+        List<byte> total = [];
+        byte[] buff = new byte[1];
+
+        while (true)
+        {
+            int s = Read(buff);
+
+            if (s <= 0) throw new HttpException.ConnectionClosed(null);
+
+            total.Add(buff[0]);
+            // total.AddRange(buff[..s]);
+            foreach (var stop in stops) if (total.Count < stop.Length) goto cont;
+
+            foreach (var stop in stops) if (EndsWith(total, stop)) goto end;
+                cont: continue; // continue not nessecary
+        }
+
+    end: return total;
     }
     public async Task<List<byte>> ReadUntilAsync(byte[] stop)
     {
@@ -127,7 +150,8 @@ public abstract class ANetSocket : IDualSocket
 
             if (s <= 0) throw new HttpException.ConnectionClosed(null);
 
-            total.AddRange(buff[..s]);
+            total.Add(buff[0]);
+            // total.AddRange(buff[..s]);
             if (total.Count < stop.Length) continue;
 
             if (EndsWith(total, stop)) break;
@@ -135,7 +159,27 @@ public abstract class ANetSocket : IDualSocket
 
         return total;
     }
+    public async Task<List<byte>> ReadUntilAsync(params byte[][] stops)
+    {
+        List<byte> total = [];
+        byte[] buff = new byte[1];
 
+        while (true)
+        {
+            int s = await ReadAsync(buff);
+
+            if (s <= 0) throw new HttpException.ConnectionClosed(null);
+
+            total.Add(buff[0]);
+            // total.AddRange(buff[..s]);
+            foreach (var stop in stops) if (total.Count < stop.Length) goto cont;
+
+            foreach (var stop in stops) if (EndsWith(total, stop)) goto end;
+            cont: continue;
+        }
+
+        end: return total;
+    }
 }
 
 public class HttpClient : IHttpClient

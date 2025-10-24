@@ -70,9 +70,9 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
         bool justReadHeaders = false; // technically redundant due to `else if`
         if (!client.HeadersComplete)
         {
-            var buff = socket.ReadUntil([13, 10, 13, 10]);
+            var buff = socket.ReadUntil([10, 10]);
             var text = Encoding.UTF8.GetString([.. buff]);
-            var lines = text.Split("\r\n");
+            var lines = text.Split("\n");
             var mpv = lines[0].Split(" ", 3);
 
             client.Method = mpv[0];
@@ -130,9 +130,9 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
         bool justReadHeaders = false; // technically unnececary due to `else if`
         if (!client.HeadersComplete)
         {
-            var buff = await socket.ReadUntilAsync([13, 10, 13, 10]);
+            var buff = await socket.ReadUntilAsync([10, 10]);
             var text = Encoding.UTF8.GetString([.. buff]);
-            var lines = text.Split("\r\n");
+            var lines = text.Split("\n");
             var mpv = lines[0].Split(" ", 3);
 
             client.Method = mpv[0];
