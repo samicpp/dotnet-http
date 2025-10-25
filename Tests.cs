@@ -18,7 +18,7 @@ using Http2Connection = Samicpp.Http.Http2.Http2Session;
 using Samicpp.Http.Debug;
 using System.Linq;
 
-public class TcpSocket(NetworkStream stream) : ANetSocket
+public class TcpSocket(NetworkStream stream) : ADualSocket
 {
     override protected NetworkStream Stream { get { return stream; } }
     override public bool IsSecure { get { return false; } }

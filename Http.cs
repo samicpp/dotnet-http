@@ -2,9 +2,9 @@
 
 using System.Net.Sockets;
 
-public abstract class ANetSocket : IDualSocket
+public abstract class ADualSocket : IDualSocket
 {
-    abstract protected NetworkStream Stream { get; }
+    abstract protected Stream Stream { get; }
     abstract public bool IsSecure { get; }
 
     public int Read(Span<byte> bytes) => Stream.Read(bytes);
