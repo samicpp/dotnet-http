@@ -301,7 +301,7 @@ public class Tests
             var data = await socket.ReadClientAsync();
             while (!data.BodyComplete) data = await socket.ReadClientAsync();
 
-            if (data.Headers.TryGetValue("accept-encoding", out List<string> encoding))
+            if (data.Headers.TryGetValue("accept-encoding", out List<string>? encoding))
             {
                 foreach (string s in encoding[0].Split(","))
                 {
@@ -370,7 +370,7 @@ public class Tests
                 foreach (var (h, vs) in client.Headers) foreach (var v in vs) ht += $"{h}: {v}\r\n";
                 Console.WriteLine(ht);
 
-                if (client.Headers.TryGetValue("upgrade", out List<string> up) && up[0] == "websocket")
+                if (client.Headers.TryGetValue("upgrade", out List<string>? up) && up[0] == "websocket")
                 {
                     using var websocket = await socket.WebSocketAsync();
                     var closed = false;
@@ -549,7 +549,7 @@ public class Tests
                 var client = await socket.ReadClientAsync();
                 while (!client.HeadersComplete) client = await socket.ReadClientAsync();
 
-                if (client.Headers.TryGetValue("upgrade", out List<string> up) && up[0] == "h2c")
+                if (client.Headers.TryGetValue("upgrade", out List<string>? up) && up[0] == "h2c")
                 {
                     Console.WriteLine("upgrading");
                     using Http2Connection h2c = await socket.H2CAsync();
