@@ -153,7 +153,7 @@ public readonly struct Http2Settings(int? headerTableSize, int? enablePush, int?
     public readonly int? max_frame_size = maxFrameSize;                  //  0x5
     public readonly int? max_header_list_size = maxHeaderListSize;       //  0x6
 
-    public static Http2Settings Default() => new(4096, 1, null, 65535, 16384, null);
+    public static Http2Settings Default() => new(4096, null, null, 65535, 16384, null);
     public static Http2Settings? Parse(Span<byte> bytes)
     {
         if ((bytes.Length % 6) != 0) return null;
@@ -162,9 +162,9 @@ public readonly struct Http2Settings(int? headerTableSize, int? enablePush, int?
 
         for (int i = 0; i < bytes.Length; i += 6)
         {
-            int name = bytes[i] << 8 | bytes[i + 1];
-            int value = bytes[i + 2] << 24 | bytes[i + 3] << 16 | bytes[i + 4] << 8 | bytes[i + 5];
-            if (name < 6) s[name] = value;
+            int name = (bytes[i] << 8) | bytes[i + 1];
+            int value = (bytes[i + 2] << 24) | (bytes[i + 3] << 16) | (bytes[i + 4] << 8) | bytes[i + 5];
+            if (name > 0 && name < 6) s[name-1] = value;
         }
 
         // return new(s.h, s.p, s.s, s.w, s.f, s.l);
@@ -175,11 +175,11 @@ public readonly struct Http2Settings(int? headerTableSize, int? enablePush, int?
         List<byte> raw = [];
 
         if (header_table_size != null) raw.AddRange([0, 1, (byte)(header_table_size >> 24), (byte)(header_table_size >> 16), (byte)(header_table_size >> 8), (byte)header_table_size]);
-        if (enable_push != null) raw.AddRange([0, 1, (byte)(enable_push >> 24), (byte)(enable_push >> 16), (byte)(enable_push >> 8), (byte)enable_push]);
-        if (max_concurrent_streams != null) raw.AddRange([0, 1, (byte)(max_concurrent_streams >> 24), (byte)(max_concurrent_streams >> 16), (byte)(max_concurrent_streams >> 8), (byte)max_concurrent_streams]);
-        if (initial_window_size != null) raw.AddRange([0, 1, (byte)(initial_window_size >> 24), (byte)(initial_window_size >> 16), (byte)(initial_window_size >> 8), (byte)initial_window_size]);
-        if (max_frame_size != null) raw.AddRange([0, 1, (byte)(max_frame_size >> 24), (byte)(max_frame_size >> 16), (byte)(max_frame_size >> 8), (byte)max_frame_size]);
-        if (max_header_list_size != null) raw.AddRange([0, 1, (byte)(max_header_list_size >> 24), (byte)(max_header_list_size >> 16), (byte)(max_header_list_size >> 8), (byte)max_header_list_size]);
+        if (enable_push != null) raw.AddRange([0, 2, (byte)(enable_push >> 24), (byte)(enable_push >> 16), (byte)(enable_push >> 8), (byte)enable_push]);
+        if (max_concurrent_streams != null) raw.AddRange([0, 3, (byte)(max_concurrent_streams >> 24), (byte)(max_concurrent_streams >> 16), (byte)(max_concurrent_streams >> 8), (byte)max_concurrent_streams]);
+        if (initial_window_size != null) raw.AddRange([0, 4, (byte)(initial_window_size >> 24), (byte)(initial_window_size >> 16), (byte)(initial_window_size >> 8), (byte)initial_window_size]);
+        if (max_frame_size != null) raw.AddRange([0, 5, (byte)(max_frame_size >> 24), (byte)(max_frame_size >> 16), (byte)(max_frame_size >> 8), (byte)max_frame_size]);
+        if (max_header_list_size != null) raw.AddRange([0, 6, (byte)(max_header_list_size >> 24), (byte)(max_header_list_size >> 16), (byte)(max_header_list_size >> 8), (byte)max_header_list_size]);
 
         return raw;
     }

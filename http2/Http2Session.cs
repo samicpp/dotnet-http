@@ -432,15 +432,18 @@ public class Http2Session(IDualSocket socket, Http2Settings settings) : IDisposa
                     break;
 
                 case Http2FrameType.Settings:
-                    settings = new(
-                        frame.settings.header_table_size ?? settings.header_table_size,
-                        frame.settings.enable_push ?? settings.enable_push,
-                        frame.settings.max_concurrent_streams ?? settings.max_concurrent_streams,
-                        frame.settings.initial_window_size ?? settings.initial_window_size,
-                        frame.settings.max_frame_size ?? settings.max_frame_size,
-                        frame.settings.max_header_list_size ?? settings.max_header_list_size
-                    );
-                    await SendSettingsAsync();
+                    if (frame.streamID == 0 && frame.flags == 0)
+                    {
+                        settings = new(
+                            frame.settings.header_table_size ?? settings.header_table_size,
+                            frame.settings.enable_push ?? settings.enable_push,
+                            frame.settings.max_concurrent_streams ?? settings.max_concurrent_streams,
+                            frame.settings.initial_window_size ?? settings.initial_window_size,
+                            frame.settings.max_frame_size ?? settings.max_frame_size,
+                            frame.settings.max_header_list_size ?? settings.max_header_list_size
+                        );
+                        await SendSettingsAsync();
+                    }
                     break;
 
                 case Http2FrameType.Goaway: goaway = frame; break;
@@ -459,6 +462,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings) : IDisposa
 
                 case Http2FrameType.WindowUpdate:
                     var pay = frame.Payload;
+                    if (pay.Length != 4) break;
                     int size = pay[0] << 24 | pay[1] << 16 | pay[2] << 8 | pay[3];
 
                     if (frame.streamID == 0)
@@ -594,6 +598,10 @@ public class Http2Session(IDualSocket socket, Http2Settings settings) : IDisposa
 
             int index = 0;
 
+            // Console.WriteLine("payload fragmenting");
+            // Console.WriteLine($"window = {window}");
+            // Console.WriteLine($"settings_initial_window_size = {settings.initial_window_size}");
+            // Console.WriteLine($"settings_max_frame_size = {settings.max_frame_size}");
             while (payload.Length - index > 0)
             {
                 var mfs = settings.max_frame_size ?? 16384;
@@ -602,6 +610,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings) : IDisposa
 
                 if (min > 0)
                 {
+                    // Console.WriteLine($"sending {min} bytes");
                     await SendFrameAsync(streamID, 0, 0, [], payload[index..(index + min)], []);
                 }
 
@@ -610,11 +619,14 @@ public class Http2Session(IDualSocket socket, Http2Settings settings) : IDisposa
                 status.window -= min;
                 streams[streamID] = status;
 
+                // Console.WriteLine($"minimum = {min}\nindex = {index}\nwindow = {window}\nstream window = {status.window}");
+
                 if (window <= 0 || status.window <= 0)
                 {
                     streamLock.Release(); streamLocked = false;
                     var frame = await ReadoneAsync();
 
+                    // Console.WriteLine($"received {frame.type} frame");
                     if (frame.type != Http2FrameType.Headers) await HandleAsync(frame);
                     else que.AddLast(frame);
 
@@ -626,6 +638,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings) : IDisposa
             }
 
             int rem = payload.Length - index;
+            // Console.WriteLine("remaining data can be sent in 1 frame");
             await SendFrameAsync(streamID, 0, end ? (byte)1 : (byte)0, [], payload[index..], []);
             window -= rem;
             status.window -= rem;
