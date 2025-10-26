@@ -26,10 +26,10 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
             field = value;
             switch (value)
             {
-                case Compression.None: headers.Remove("Content-Encoding"); break;
-                case Compression.Gzip: headers["Content-Encoding"] = ["gzip"]; break;
-                case Compression.Deflate: headers["Content-Encoding"] = ["deflate"]; break;
-                case Compression.Brotli: headers["Content-Encoding"] = ["br"]; break;
+                case Compression.None: headers.Remove("content-encoding"); break;
+                case Compression.Gzip: headers["content-encoding"] = ["gzip"]; break;
+                case Compression.Deflate: headers["content-encoding"] = ["deflate"]; break;
+                case Compression.Brotli: headers["content-encoding"] = ["br"]; break;
             }
         } 
     } = Compression.None;

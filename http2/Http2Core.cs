@@ -70,7 +70,10 @@ public readonly struct Http2Frame(
             }
 
             Range priority = 0..0;
-            if ((flags & 32) != 0) priority = (9 + offset)..(9 + offset + 5);
+            if ((flags & 32) != 0) {
+                priority = (9 + offset)..(9 + offset + 5);
+                offset += 5;
+            }
 
             Range payload = (9 + offset)..(9 + length - padLength);
 
@@ -137,6 +140,10 @@ public readonly struct Http2Frame(
         offset += payload.Length;
 
         if ((flags & 8) != 0) foreach (byte b in padding) raw[offset++] = b;
+
+        // Console.Write($"sending frame [ ");
+        // foreach (byte b in raw) Console.Write($"0x{b:X}, ");
+        // Console.WriteLine("]");
 
         return raw;
     }
