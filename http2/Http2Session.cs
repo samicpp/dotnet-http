@@ -1,6 +1,7 @@
 namespace Samicpp.Http.Http2;
 
 using System.Collections.Concurrent;
+using System.Net;
 using System.Threading.Tasks;
 using Samicpp.Http;
 using Samicpp.Http.Http2.Hpack;
@@ -34,10 +35,12 @@ public class Http2Status(
     public List<(byte[] name, byte[] value)> headers = [];
 }
 
-public class Http2Session(IDualSocket socket, Http2Settings settings) : IDisposable, IAsyncDisposable
+public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? endPoint = null) : IDisposable, IAsyncDisposable
 {
     public readonly ConcurrentDictionary<int, Http2Status> streams = new();
     readonly IDualSocket socket = socket;
+    // public IDualSocket Conn { get => socket; }
+    public EndPoint? EndPoint => endPoint;
     public Http2Settings settings = settings;
     private int window = settings.initial_window_size ?? 16384;
     public Http2Frame? goaway = null;

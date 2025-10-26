@@ -1,5 +1,6 @@
 namespace Samicpp.Http.Http09;
 
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -20,7 +21,7 @@ public class Http09Client() : IHttpClient
     public bool BodyComplete { get; set; } = true;
 }
 
-public class Http09Socket(IDualSocket socket) : IDualHttpSocket
+public class Http09Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualHttpSocket
 {
     public bool IsHttps { get => socket.IsSecure; }
     protected readonly IDualSocket socket = socket;
@@ -28,6 +29,12 @@ public class Http09Socket(IDualSocket socket) : IDualHttpSocket
     public IHttpClient Client { get => client; }
     public bool HeadSent { get; set; } = true;
     public bool IsClosed { get; set; }
+    public EndPoint? EndPoint => endPoint;
+    // IDualSocket IDualHttpSocket.Conn { get => socket; }
+    // IAsyncSocket IAsyncHttpSocket.Conn { get => socket; }
+    // ISyncSocket ISyncHttpSocket.Conn { get => socket; }
+    // ISocket IHttpSocket.Conn { get => socket; }
+
 
     public void Dispose()
     {

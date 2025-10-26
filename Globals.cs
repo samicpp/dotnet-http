@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace Samicpp.Http;
 
 public interface IHttpSocket
@@ -13,6 +15,8 @@ public interface IHttpSocket
     void AddHeader(string name, string value);
     List<string> DelHeader(string name);
     Compression Compression { get; set; }
+    EndPoint? EndPoint { get; }
+    // ISocket Conn { get; }
 }
 public interface ISyncHttpSocket : IHttpSocket, IDisposable
 {
@@ -23,6 +27,8 @@ public interface ISyncHttpSocket : IHttpSocket, IDisposable
     void Write(string text);
     void Write(byte[] bytes);
     WebSocket.WebSocket WebSocket();
+
+    // new ISyncSocket Conn { get; }
 }
 public interface IAsyncHttpSocket: IHttpSocket, IAsyncDisposable
 {
@@ -33,8 +39,13 @@ public interface IAsyncHttpSocket: IHttpSocket, IAsyncDisposable
     Task WriteAsync(string text);
     Task WriteAsync(byte[] bytes);
     Task<WebSocket.WebSocket> WebSocketAsync();
+
+    // new IAsyncSocket Conn { get; }
 }
-public interface IDualHttpSocket : IAsyncHttpSocket, ISyncHttpSocket { }
+public interface IDualHttpSocket : IAsyncHttpSocket, ISyncHttpSocket
+{
+    // new IDualSocket Conn { get; }
+}
 
 public interface IHttpClient
 {
@@ -54,7 +65,6 @@ public interface ISocket
     bool CanRead { get; }
     bool CanWrite { get; }
     bool IsSecure { get; }
-
 }
 public interface IAsyncSocket : ISocket, IAsyncDisposable
 {

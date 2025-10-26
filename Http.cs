@@ -1,11 +1,13 @@
 ﻿namespace Samicpp.Http;
 
+using System.Net;
 using System.Net.Sockets;
 
 public abstract class ADualSocket : IDualSocket
 {
     abstract protected Stream Stream { get; }
     abstract public bool IsSecure { get; }
+    // abstract public EndPoint? EndPoint { get; }
 
     public int Read(Span<byte> bytes) => Stream.Read(bytes);
     public int Read(byte[] bytes, int offset, int size) => Stream.Read(bytes, offset, size);

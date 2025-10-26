@@ -1,5 +1,6 @@
 namespace Samicpp.Http.Http1;
 
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,10 +13,16 @@ public class Http1Exception(string? message, Exception? other) : HttpException(m
     public sealed class WebSocketNotSupported(string? err = null) : Http1Exception(err, null);
 }
 
-public class Http1Socket(IDualSocket socket) : IDualHttpSocket
+public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualHttpSocket
 {
     public bool IsHttps { get => socket.IsSecure; }
     protected readonly IDualSocket socket = socket;
+    // IDualSocket IDualHttpSocket.Conn { get => socket; }
+    // IAsyncSocket IAsyncHttpSocket.Conn { get => socket; }
+    // ISyncSocket ISyncHttpSocket.Conn { get => socket; }
+    // ISocket IHttpSocket.Conn { get => socket; }
+    public EndPoint? EndPoint => endPoint;
+
     public void Dispose()
     {
         socket.Dispose();
@@ -352,7 +359,7 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
         }
 
         socket.Write(H2C_UPGRADE);
-        var conn = new Http2Session(socket, settings);
+        var conn = new Http2Session(socket, settings, EndPoint);
         return conn;
     }
     public async Task<Http2Session> H2CAsync()
@@ -370,7 +377,7 @@ public class Http1Socket(IDualSocket socket) : IDualHttpSocket
         }
         
         await socket.WriteAsync(H2C_UPGRADE);
-        var conn = new Http2Session(socket, settings);
+        var conn = new Http2Session(socket, settings, EndPoint);
 
         Http2Status stream = new(settings.initial_window_size ?? 16384, 1, true, true, false, false);
 

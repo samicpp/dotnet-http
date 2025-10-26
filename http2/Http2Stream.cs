@@ -1,5 +1,6 @@
 namespace Samicpp.Http.Http2;
 
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Samicpp.Http;
@@ -17,6 +18,11 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     public IHttpClient Client { get => client; }
     public bool IsClosed { get; set; }
     public bool HeadSent { get; set; }
+    public EndPoint? EndPoint => conn.EndPoint;
+    // IDualSocket IDualHttpSocket.Conn { get => conn.Conn; }
+    // IAsyncSocket IAsyncHttpSocket.Conn { get => conn.Conn; }
+    // ISyncSocket ISyncHttpSocket.Conn { get => conn.Conn; }
+    // ISocket IHttpSocket.Conn { get => conn.Conn; }
 
     public int Status { get; set; } = 200;
     public string StatusMessage { get; set; } = "OK"; // doesnt matter

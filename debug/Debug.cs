@@ -1,5 +1,6 @@
 namespace Samicpp.Http.Debug;
 
+using System.Net;
 using System.Text;
 using Samicpp.Http;
 
@@ -14,6 +15,12 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
     public IHttpClient Client { get => client; }
     public bool IsClosed { get; set; }
     public bool HeadSent { get; set; }
+
+    // IDualSocket IDualHttpSocket.Conn { get => throw new Exception("cannot access connection socket in fake socket"); }
+    // IAsyncSocket IAsyncHttpSocket.Conn { get => throw new Exception("cannot access connection socket in fake socket"); }
+    // ISyncSocket ISyncHttpSocket.Conn { get => throw new Exception("cannot access connection socket in fake socket"); }
+    // ISocket IHttpSocket.Conn { get => throw new Exception("cannot access connection socket in fake socket"); }
+    public EndPoint? EndPoint => null;
 
     public int Status { get; set { field = value; Console.WriteLine($"set status to {value}"); } } = 200;
     public string StatusMessage { get; set { field = value; Console.WriteLine($"set status message to {value}"); } } = "OK";
