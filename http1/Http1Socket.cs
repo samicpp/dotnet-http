@@ -357,9 +357,20 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         {
             settings = Http2Settings.Default();
         }
-
+        
         socket.Write(H2C_UPGRADE);
         var conn = new Http2Session(socket, settings, EndPoint);
+
+        Http2Status stream = new(settings.initial_window_size ?? 16384, 1, true, true, false, false);
+
+        stream.headers.Add((":authority"u8.ToArray(), Encoding.UTF8.GetBytes(client.Host)));
+        stream.headers.Add((":method"u8.ToArray(), Encoding.UTF8.GetBytes(client.Method)));
+        stream.headers.Add((":path"u8.ToArray(), Encoding.UTF8.GetBytes(client.Path)));
+
+        foreach (var (h, vs) in client.Headers) foreach (var v in vs) stream.headers.Add((Encoding.UTF8.GetBytes(h), Encoding.UTF8.GetBytes(v)));
+
+        conn.SetStream(stream);
+
         return conn;
     }
     public async Task<Http2Session> H2CAsync()
@@ -387,7 +398,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
 
         foreach (var (h, vs) in client.Headers) foreach (var v in vs) stream.headers.Add((Encoding.UTF8.GetBytes(h), Encoding.UTF8.GetBytes(v)));
 
-        conn.streams[1] = stream;
+        await conn.SetStreamAsync(stream);
 
         return conn;
     }

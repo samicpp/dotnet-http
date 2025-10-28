@@ -55,10 +55,33 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         return head;
     }
 
-    public Task<IHttpClient> ReadClientAsync() => Task.FromResult(ReadClient());
     public IHttpClient ReadClient()
     {
-        var stream = conn.streams[streamID] ?? throw new Http2Exception.StreamDoesntExist("huh?");
+        var stream = conn.GetStream(streamID) ?? throw new Http2Exception.StreamDoesntExist("huh?");
+
+        client.Body = stream.body;
+        client.HeadersComplete = stream.end_headers;
+        client.BodyComplete = stream.end_stream;
+        client.Version = "HTTP/2";
+
+        client.Headers.Clear();
+        foreach (var (hb, vb) in stream.headers)
+        {
+            var header = Encoding.UTF8.GetString(hb);
+            var value = Encoding.UTF8.GetString(vb);
+
+            if (header == ":path") client.Path = value;
+            else if (header == ":method") client.Method = value;
+            else if (header == ":authority") client.Host = value;
+            else if (client.Headers.TryGetValue(header, out List<string>? ls)) ls.Add(value);
+            else client.Headers[header] = [value];
+        }
+
+        return client;
+    }
+    public async Task<IHttpClient> ReadClientAsync()
+    {
+        var stream = await conn.GetStreamAsync(streamID) ?? throw new Http2Exception.StreamDoesntExist("huh?");
 
         client.Body = stream.body;
         client.HeadersComplete = stream.end_headers;

@@ -37,7 +37,7 @@ public class Http2Status(
 
 public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? endPoint = null) : IDisposable, IAsyncDisposable
 {
-    public readonly ConcurrentDictionary<int, Http2Status> streams = new();
+    protected readonly ConcurrentDictionary<int, Http2Status> streams = new();
     readonly IDualSocket socket = socket;
     // public IDualSocket Conn { get => socket; }
     public EndPoint? EndPoint => endPoint;
@@ -214,6 +214,54 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         return frames;
     }
 
+    public Http2Status? GetStream(int streamID, bool locking = true)
+    {
+        if (locking) streamLock.Wait();
+        try
+        {
+            return streams.GetValueOrDefault(streamID);
+        }
+        finally
+        {
+            if (locking) streamLock.Release();
+        }
+    }
+    public async Task<Http2Status?> GetStreamAsync(int streamID, bool locking = true)
+    {
+        if (locking) await streamLock.WaitAsync();
+        try
+        {
+            return streams.GetValueOrDefault(streamID);
+        }
+        finally
+        {
+            if (locking) streamLock.Release();
+        }
+    }
+    public void SetStream(Http2Status status)
+    {
+        streamLock.Wait();
+        try
+        {
+            streams[status.streamID] = status;
+        }
+        finally
+        {
+            streamLock.Release();
+        }
+    }
+    public async Task SetStreamAsync(Http2Status status)
+    {
+        await streamLock.WaitAsync();
+        try
+        {
+            streams[status.streamID] = status;
+        }
+        finally
+        {
+            streamLock.Release();
+        }
+    }
 
     public List<int> Handle(List<Http2Frame> frames)
     {

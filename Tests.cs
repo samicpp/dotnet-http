@@ -470,7 +470,7 @@ public class Tests
                     {
                         Console.WriteLine($"stream opened {sid}");
                         // throw new Exception("test");
-                        var stream = socket.streams[sid];
+                        var stream = (await socket.GetStreamAsync(sid))!;
 
                         Console.WriteLine("client sent headers \x1b[32m");
                         foreach (var (h, v) in stream.headers)
@@ -561,7 +561,7 @@ public class Tests
                     int sid = 1;
                     Console.WriteLine($"stream opened {sid}");
 
-                    var stream = h2c.streams[sid];
+                    var stream = (await h2c.GetStreamAsync(sid))!;
 
                     Console.WriteLine("client sent headers \x1b[32m");
                     foreach (var (h, v) in stream.headers)
