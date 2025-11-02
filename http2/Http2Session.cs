@@ -89,9 +89,9 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         }
     }
 
-    private Http2Frame Readone()
+    private Http2Frame Readone(bool useLock = true)
     {
-        readLock.Wait();
+        if (useLock) readLock.Wait();
         try
         {
             byte[] head = socket.ReadCertain(9);
@@ -105,12 +105,12 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         }
         finally
         {
-            readLock.Release();
+            if (useLock) readLock.Release();
         }
     }
-    private async Task<Http2Frame> ReadoneAsync()
+    private async Task<Http2Frame> ReadoneAsync(bool useLock = true)
     {
-        await readLock.WaitAsync();
+        if (useLock) await readLock.WaitAsync();
         try
         {
             byte[] head = await socket.ReadCertainAsync(9);
@@ -124,7 +124,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         }
         finally
         {
-            readLock.Release();
+            if (useLock) readLock.Release();
         }
     }
 
@@ -543,14 +543,37 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         return opened;
     }
 
-    protected void SendFrame(int streamID, byte type, byte flags, byte[] priority, byte[] payload, byte[] padding) => socket.Write(Http2Frame.Create(streamID, type, flags, priority, payload, padding));
-    protected async Task SendFrameAsync(int streamID, byte type, byte flags, byte[] priority, byte[] payload, byte[] padding) => await socket.WriteAsync(Http2Frame.Create(streamID, type, flags, priority, payload, padding));
+    protected void SendFrame(int streamID, byte type, byte flags, byte[] priority, byte[] payload, byte[] padding)
+    {
+        writeLock.Wait();
+        try
+        {
+            socket.Write(Http2Frame.Create(streamID, type, flags, priority, payload, padding));
+        }
+        finally
+        {
+            writeLock.Release();
+        }
+    }
+    protected async Task SendFrameAsync(int streamID, byte type, byte flags, byte[] priority, byte[] payload, byte[] padding)
+    {
+        await writeLock.WaitAsync();
+        try
+        {
+            await socket.WriteAsync(Http2Frame.Create(streamID, type, flags, priority, payload, padding));
+        }
+        finally
+        {
+            writeLock.Release();
+        }
+    }
 
     public void SendData(int streamID, bool end, byte[] payload)
     {
         // Http2Status stream;
         sendLock.Wait();
         streamLock.Wait(); bool streamLocked = true;
+        readLock.Wait();
         try
         {
             if (streams.TryGetValue(streamID, out var status))
@@ -595,7 +618,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                 if (window <= 0 || status.window <= 0)
                 {
                     streamLock.Release(); streamLocked = false;
-                    var frame = Readone();
+                    var frame = Readone(false);
 
                     if (frame.type != Http2FrameType.Headers) Handle(frame);
                     else que.AddLast(frame);
@@ -615,6 +638,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         }
         finally
         {
+            readLock.Release();
             sendLock.Release();
             if (streamLocked) streamLock.Release();
         }
@@ -624,6 +648,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         // Http2Status stream;
         await sendLock.WaitAsync();
         await streamLock.WaitAsync(); bool streamLocked = true;
+        // await readLock.WaitAsync();
         try
         {
             if (streams.TryGetValue(streamID, out var status))
@@ -680,6 +705,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     // Console.WriteLine($"received {frame.type} frame");
                     if (frame.type != Http2FrameType.Headers) await HandleAsync(frame);
                     else que.AddLast(frame);
+                    // await new TaskCompletionSource<bool>().Task;
 
                     await streamLock.WaitAsync(); streamLocked = true;
                     status = streams[streamID];
@@ -699,6 +725,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         {
             sendLock.Release();
             if (streamLocked) streamLock.Release();
+            // readLock.Release();
         }
     }
 
@@ -728,7 +755,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
             streamLock.Release();
         }
 
-        writeLock.Wait();
+        sendLock.Wait();
         try
         {
             if (headers.Length > mfs)
@@ -751,11 +778,12 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         }
         finally
         {
-            writeLock.Release();
+            sendLock.Release();
         }
     }
     private async Task FlowHeadersAsync(int streamID, bool end, byte[] headers)
     {
+        // Console.WriteLine("sending headers");
         int mfs = settings.max_frame_size ?? 16384;
         byte flags = end ? (byte)5 : (byte)4;
 
@@ -779,7 +807,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
             streamLock.Release();
         }
 
-        await writeLock.WaitAsync();
+        await sendLock.WaitAsync();
         try
         {
             if (headers.Length > mfs)
@@ -802,7 +830,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         }
         finally
         {
-            writeLock.Release();
+            sendLock.Release();
         }
     }
     public void SendHeaders(int streamID, bool end, HeaderEntry[] headers)
