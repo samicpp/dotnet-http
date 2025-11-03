@@ -10,6 +10,14 @@
     <!-- <IsPackable>false</IsPackable> -->
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- <RuntimeIdentifiers>win-x64;win-x86;win-arm64;linux-x64;linux-musl-x64;linux-musl-arm64;linux-arm;linux-arm64;linux-bionic-arm64;linux-loongarch64;osx-x64;osx-arm64;ios-arm64;iossimulator-arm64;iossimulator-x64;android-arm64;android-arm;android-x64;android-x86</RuntimeIdentifiers> -->
+    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm;linux-arm64;osx-x64;osx-arm64;android-arm64</RuntimeIdentifiers>
+    <!-- <PublishTrimmed>false</PublishTrimmed> -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="xunit" Version="2.9.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.1" />
