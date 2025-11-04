@@ -24,7 +24,7 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
 
     public int Status { get; set { field = value; Console.WriteLine($"set status to {value}"); } } = 200;
     public string StatusMessage { get; set { field = value; Console.WriteLine($"set status message to {value}"); } } = "OK";
-    public Compression Compression { get; set { field = value; Console.WriteLine($"set compression to {value}"); } } = Compression.None;
+    public CompressionType Compression { get; set { field = value; Console.WriteLine($"set compression to {value}"); } } = CompressionType.None;
 
     private readonly Dictionary<string, List<string>> headers = new() { { "Connection", ["close"] } };
     public void SetHeader(string name, string value) {

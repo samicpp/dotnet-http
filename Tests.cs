@@ -15,6 +15,7 @@ using Samicpp.Http.Http1;
 using Samicpp.Http.WebSocket;
 using System.Collections.Generic;
 using Http2Connection = Samicpp.Http.Http2.Http2Session;
+using Compression = Samicpp.Http.CompressionType;
 using Samicpp.Http.Debug;
 using System.Linq;
 

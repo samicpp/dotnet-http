@@ -26,19 +26,24 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
 
     public int Status { get; set; } = 200;
     public string StatusMessage { get; set; } = "OK"; // doesnt matter
-    public Compression Compression { 
+
+    private Compressor compressor = new();
+    public CompressionType Compression { 
         get; set
         {
+            if (HeadSent) throw new Http2Exception.HeadersSent("cannot set compression");
             field = value;
-            switch (value)
-            {
-                case Compression.None: headers.Remove("content-encoding"); break;
-                case Compression.Gzip: headers["content-encoding"] = ["gzip"]; break;
-                case Compression.Deflate: headers["content-encoding"] = ["deflate"]; break;
-                case Compression.Brotli: headers["content-encoding"] = ["br"]; break;
-            }
+            compressor = new(value);
+
+            // switch (value)
+            // {
+            //     case CompressionType.None: headers.Remove("content-encoding"); break;
+            //     case CompressionType.Gzip: headers["content-encoding"] = ["gzip"]; break;
+            //     case CompressionType.Deflate: headers["content-encoding"] = ["deflate"]; break;
+            //     case CompressionType.Brotli: headers["content-encoding"] = ["br"]; break;
+            // }
         } 
-    } = Compression.None;
+    } = CompressionType.None;
 
     private readonly Dictionary<string, List<string>> headers = [];
     public void SetHeader(string name, string value) => headers[name.ToLower()] = [value];
@@ -137,7 +142,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     {
         if (!IsClosed && !HeadSent)
         {
-            var compressed = Compressor.Compress(Compression, data);
+            var compressed = compressor.Finish(data);
             headers["content-length"] = [compressed.Length.ToString()];
             SendHead(false);
             conn.SendData(streamID, true, compressed);
@@ -145,7 +150,8 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         }
         else if (!IsClosed)
         {
-            conn.SendData(streamID, true, data);
+            var compressed = compressor.Finish(data);
+            conn.SendData(streamID, true, compressed);
             IsClosed = true;
         }
     }
@@ -156,7 +162,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     {
         if (!IsClosed && !HeadSent)
         {
-            var compressed = await Compressor.CompressAsync(Compression, data);
+            var compressed = await compressor.FinishAsync(data);
             headers["content-length"] = [compressed.Length.ToString()];
             SendHead(false);
             await conn.SendDataAsync(streamID, true, compressed);
@@ -164,7 +170,8 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         }
         else if (!IsClosed)
         {
-            await conn.SendDataAsync(streamID, true, data);
+            var compressed = await compressor.FinishAsync(data);
+            await conn.SendDataAsync(streamID, true, compressed);
             IsClosed = true;
         }
     }
@@ -175,7 +182,8 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         if (!IsClosed)
         {
             if (!HeadSent) SendHead();
-            conn.SendData(streamID, false, data);
+            var compressed = compressor.Write(data);
+            conn.SendData(streamID, false, compressed);
         }
     }
 
@@ -185,7 +193,8 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         if (!IsClosed)
         {
             if (!HeadSent) await SendHeadAsync();
-            await conn.SendDataAsync(streamID, false, data);
+            var compressed = await compressor.WriteAsync(data);
+            await conn.SendDataAsync(streamID, false, compressed);
         }
     }
 

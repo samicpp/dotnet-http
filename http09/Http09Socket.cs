@@ -123,7 +123,7 @@ public class Http09Socket(IDualSocket socket, EndPoint? endPoint = null) : IDual
 
     public int Status { get; set; } = 200;
     public string StatusMessage { get; set; } = "OK";
-    public Compression Compression { get; set; } = Compression.None;
+    public CompressionType Compression { get; set; } = CompressionType.None;
 
     public void SetHeader(string name, string value) { }
     public void AddHeader(string name, string value) { }

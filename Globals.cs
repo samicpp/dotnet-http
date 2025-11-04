@@ -14,7 +14,7 @@ public interface IHttpSocket
     void SetHeader(string name, string value);
     void AddHeader(string name, string value);
     List<string> DelHeader(string name);
-    Compression Compression { get; set; }
+    CompressionType Compression { get; set; }
     EndPoint? EndPoint { get; }
     // ISocket Conn { get; }
 }

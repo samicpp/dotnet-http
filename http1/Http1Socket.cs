@@ -41,20 +41,24 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
 
     public int Status { get; set; } = 200;
     public string StatusMessage { get; set; } = "OK";
-    public Compression Compression
+    
+    private Compressor compressor = new();
+    public CompressionType Compression
     {
         get; set
         {
+            if (HeadSent) throw new Http1Exception.HeadersSent("cannot set compression");
             field = value;
-            switch (value)
-            {
-                case Compression.None: headers.Remove("Content-Encoding"); break;
-                case Compression.Gzip: headers["Content-Encoding"] = ["gzip"]; break;
-                case Compression.Deflate: headers["Content-Encoding"] = ["deflate"]; break;
-                case Compression.Brotli: headers["Content-Encoding"] = ["br"]; break;
-            }
+            compressor = new(value);
+            // switch (value)
+            // {
+            //     case CompressionType.None: headers.Remove("Content-Encoding"); break;
+            //     case CompressionType.Gzip: headers["Content-Encoding"] = ["gzip"]; break;
+            //     case CompressionType.Deflate: headers["Content-Encoding"] = ["deflate"]; break;
+            //     case CompressionType.Brotli: headers["Content-Encoding"] = ["br"]; break;
+            // }
         }
-    }
+    } = CompressionType.None;
 
     private readonly Dictionary<string, List<string>> headers = new(/*StringComparer.OrdinalIgnoreCase*/) { { "Connection", ["close"] } };
     public void SetHeader(string name, string value) => headers[name] = [value];
@@ -233,7 +237,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
     {
         if (!IsClosed && !HeadSent)
         {
-            var compressed = Compressor.Compress(this.Compression, bytes);
+            var compressed = compressor.Finish(bytes);
             headers["Content-Length"] = [compressed.Length.ToString()];
             SendHead();
             socket.Write(compressed);
@@ -241,9 +245,10 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         }
         else if (!IsClosed)
         {
+            var compressed = compressor.Finish(bytes);
             // TODO: add support for sending final headers
-            socket.Write(Encoding.UTF8.GetBytes(bytes.Length.ToString("X") + "\r\n"));
-            socket.Write(bytes);
+            socket.Write(Encoding.UTF8.GetBytes(compressed.Length.ToString("X") + "\r\n"));
+            socket.Write(compressed);
             socket.Write([13, 10, 48, 13, 10, 13, 10]);
         }
     }
@@ -254,7 +259,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
     {
         if (!IsClosed && !HeadSent)
         {
-            var compressed = await Compressor.CompressAsync(this.Compression, bytes);
+            var compressed = await compressor.FinishAsync(bytes);
             headers["Content-Length"] = [compressed.Length.ToString()];
             await SendHeadAsync();
             await socket.WriteAsync(compressed);
@@ -262,10 +267,11 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         }
         else if (!IsClosed)
         {
+            var compressed = await compressor.FinishAsync(bytes);
             // TODO: add support for sending final headers
             byte[] term = [13, 10, 48, 13, 10, 13, 10];
-            await socket.WriteAsync(Encoding.UTF8.GetBytes(bytes.Length.ToString("X") + "\r\n"));
-            await socket.WriteAsync(bytes);
+            await socket.WriteAsync(Encoding.UTF8.GetBytes(compressed.Length.ToString("X") + "\r\n"));
+            await socket.WriteAsync(compressed);
             await socket.WriteAsync(term);
         }
     }
@@ -280,8 +286,9 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
                 headers["Transfer-Encoding"] = ["chunked"];
                 SendHead();
             }
-            socket.Write(Encoding.UTF8.GetBytes(bytes.Length.ToString("X") + "\r\n"));
-            socket.Write(bytes);
+            var compressed = compressor.Write(bytes);
+            socket.Write(Encoding.UTF8.GetBytes(compressed.Length.ToString("X") + "\r\n"));
+            socket.Write(compressed);
             socket.Write([13, 10]);
         }
     }
@@ -296,8 +303,9 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
                 headers["Transfer-Encoding"] = ["chunked"];
                 await SendHeadAsync();
             }
-            await socket.WriteAsync(Encoding.UTF8.GetBytes(bytes.Length.ToString("X") + "\r\n"));
-            await socket.WriteAsync(bytes);
+            var compressed = await compressor.WriteAsync(bytes);
+            await socket.WriteAsync(Encoding.UTF8.GetBytes(compressed.Length.ToString("X") + "\r\n"));
+            await socket.WriteAsync(compressed);
             await socket.WriteAsync("\r\n"u8.ToArray());
         }
     }

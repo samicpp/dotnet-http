@@ -22,7 +22,8 @@ In the future I might make another library that uses this one to support a ready
 - [ ] implement QUIC (likely `System.Net.Quic` will be used instead)
 - [ ] implement QPACK
 - [ ] implement HTTP/3
-
+- [x] improve compressor
+- [ ] support use of `Stream` instead of `byte[]`
 
 ## Examples
 
