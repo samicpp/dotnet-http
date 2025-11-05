@@ -88,3 +88,26 @@ public class Compressor
         return buffer.ToArray();
     }
 }
+
+/*public class Decompressor
+{
+    public readonly CompressionType type = CompressionType.None;
+    readonly MemoryStream buffer = new();
+    readonly Stream? stream;
+    bool finished;
+
+    public Decompressor(CompressionType compressionType = CompressionType.None)
+    {
+        type = compressionType;
+
+        if (compressionType == CompressionType.None) return;
+
+        stream = type switch
+        {
+            CompressionType.Gzip => new GZipStream(buffer, CompressionMode.Decompress),
+            CompressionType.Deflate => new DeflateStream(buffer, CompressionMode.Decompress),
+            CompressionType.Brotli => new BrotliStream(buffer, CompressionMode.Decompress),
+            _ => throw new NotSupportedException(""),
+        };
+    }
+}*/
