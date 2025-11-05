@@ -37,9 +37,9 @@ public class Tests
     public void frameParseTest()
     {
         Http2Frame frame = Http2Frame.Parse([0, 0, 14, 0, 0, 0, 1, 0, 49, 5, 0, 0, 0, 1, 5, 97, 98, 99, 1, 2, 3, 4, 5,]);
-        Console.WriteLine(frame.payload);
-        Console.WriteLine(frame.priority);
-        Console.WriteLine(frame.padding);
+        Console.WriteLine(frame.payloadr);
+        Console.WriteLine(frame.priorityr);
+        Console.WriteLine(frame.paddingr);
         Console.Write("frame = [ ");
         foreach (byte b in frame.ToBytes()) Console.Write($"0x{b:X}, ");
         Console.WriteLine("]");
@@ -382,7 +382,7 @@ public class Tests
                         foreach (var frame in frames)
                         {
                             Console.WriteLine("received frame " + frame.type);
-                            Console.WriteLine("payload = " + frame.payload);
+                            Console.WriteLine("payload = " + frame.payloadr);
                             Console.WriteLine("frame size = " + frame.raw.Length);
 
                             var payload = frame.GetPayload();

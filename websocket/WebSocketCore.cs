@@ -5,7 +5,7 @@ public readonly struct WebSocketFrame(
     bool fin, int rsv, int opcode,
     bool masked, int len,
     ulong ext, Range mask,
-    Range payload, WebSocketFrameType type
+    Range payloadr, WebSocketFrameType type
 ) {
     public readonly byte[] raw = raw;
 
@@ -18,14 +18,14 @@ public readonly struct WebSocketFrame(
 
     public readonly ulong ext = ext;
     public readonly Range mask = mask;
-    public readonly Range payload = payload;
+    public readonly Range payloadr = payloadr;
 
     public readonly WebSocketFrameType type = type;
 
     // method instead of getter cause to not confuse users since it induces overhead
     public readonly byte[] GetPayload()
     {
-        var pay = raw[payload];
+        var pay = raw[payloadr];
 
         if (masked)
         {

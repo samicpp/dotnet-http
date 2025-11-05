@@ -4,7 +4,7 @@ namespace Samicpp.Http.Http2;
 public readonly struct Http2Frame(
     byte[] raw,
     int length, int streamID, byte btype, byte flags,
-    Range priority, Range payload, Range padding,
+    Range priorityRange, Range payloadRange, Range paddingRange,
     Http2FrameType type, Http2Settings settings
 )
 {
@@ -15,16 +15,16 @@ public readonly struct Http2Frame(
     public readonly byte btype = btype;
     public readonly byte flags = flags;
 
-    public readonly Range priority = priority;
-    public readonly Range payload = payload;
-    public readonly Range padding = padding;
+    public readonly Range priorityr = priorityRange;
+    public readonly Range payloadr = payloadRange;
+    public readonly Range paddingr = paddingRange;
 
     public readonly Http2FrameType type = type;
     public readonly Http2Settings settings = settings;
 
-    public readonly Span<byte> Priority { get => raw[priority]; }
-    public readonly Span<byte> Payload { get => raw[payload]; }
-    public readonly Span<byte> Padding { get => raw[padding]; }
+    public readonly Span<byte> Priority { get => raw[priorityr]; }
+    public readonly Span<byte> Payload { get => raw[payloadr]; }
+    public readonly Span<byte> Padding { get => raw[paddingr]; }
 
     public static List<byte[]> Split(Span<byte> bytes)
     {
