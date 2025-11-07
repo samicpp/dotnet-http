@@ -620,7 +620,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     streamLock.Release(); streamLocked = false;
                     var frame = Readone(false);
 
-                    if (frame.type != Http2FrameType.Headers) Handle(frame);
+                    if (frame.type == Http2FrameType.WindowUpdate) Handle(frame);
                     else que.AddLast(frame);
 
                     streamLock.Wait(); streamLocked = true;
@@ -703,7 +703,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     var frame = await ReadoneAsync();
 
                     // Console.WriteLine($"received {frame.type} frame");
-                    if (frame.type != Http2FrameType.Headers) await HandleAsync(frame);
+                    if (frame.type == Http2FrameType.WindowUpdate) await HandleAsync(frame);
                     else que.AddLast(frame);
                     // await new TaskCompletionSource<bool>().Task;
 
