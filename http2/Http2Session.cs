@@ -927,7 +927,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         try
         {
             // if (socket.CanWrite && goaway == null) SendGoaway(0, 0x2, "Dispose called before connection closed"u8.ToArray());
-            if (socket.CanWrite && goaway == null) SendGoaway(0, 0x0, []);
+            // if (socket.CanWrite && goaway == null) SendGoaway(0, 0x0, []);
         }
         // catch (Exception) { }
         finally
@@ -941,7 +941,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         try
         {
             // if (socket.CanWrite && goaway == null) await SendGoawayAsync(0, 0x2, "Dispose called before connection closed"u8.ToArray());
-            if (socket.CanWrite && goaway == null) await SendGoawayAsync(0, 0x0, []);
+            // if (socket.CanWrite && goaway == null) await SendGoawayAsync(0, 0x0, []);
         }
         // catch (Exception) { }
         finally
