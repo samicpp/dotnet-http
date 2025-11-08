@@ -186,8 +186,8 @@ public abstract class ADualSocket : IDualSocket
 
 public class HttpClient : IHttpClient
 {
-    public bool IsValid { get; set; } = true;
-    public Dictionary<string, List<string>> Headers { get; set; } = [];
+    public bool IsValid { get; set; } = false;
+    public Dictionary<string, List<string>> Headers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public string Host { get; set; } = "about:blank";
     public string Method { get; set; } = "NILL";
     public string Path { get; set; } = "/";

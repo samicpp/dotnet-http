@@ -11,7 +11,7 @@ public class Http2Exception(string? message, Exception? other) : HttpException(m
 {
     public sealed class StreamClosed(string? message) : Http2Exception(message, null);
     public sealed class StreamDoesntExist(string? message) : Http2Exception(message, null);
-    public sealed class MalformedFrame(Exception? err = null): Http2Exception(null, err);
+    public sealed class MalformedFrame(Exception? err = null) : Http2Exception(null, err);
     public sealed class HeadersNotSent(string? message) : Http2Exception(message, null);
     public sealed class InvalidMagicSequence(string? message) : Http2Exception(message, null);
     public sealed class ProtocolError(string? message, Exception? err = null) : Http2Exception(message, err);
@@ -314,9 +314,19 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     break;
 
                 case Http2FrameType.Headers:
-                    if (streams.TryGetValue(frame.streamID, out stream))
+                    if (streams.TryGetValue(frame.streamID, out stream) && !stream.end_stream)
                     {
-                        throw new Http2Exception.ProtocolError("Header frame sent for existing stream");
+                        // throw new Http2Exception.ProtocolError("Header frame sent for existing stream");
+                        stream.head.Clear();
+                        stream.head.AddRange(frame.Payload);
+
+                        if (stream.end_headers)
+                        {
+                            stream.headers = hpackd.Decode([.. stream.head]);
+                        }
+
+                        streams[frame.streamID] = stream;
+                        opened = frame.streamID;
                     }
                     else
                     {
@@ -445,7 +455,17 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                 case Http2FrameType.Headers:
                     if (streams.TryGetValue(frame.streamID, out stream))
                     {
-                        throw new Http2Exception.ProtocolError("Header frame sent for existing stream");
+                        // throw new Http2Exception.ProtocolError("Header frame sent for existing stream");
+                        stream.head.Clear();
+                        stream.head.AddRange(frame.Payload);
+
+                        if (stream.end_headers)
+                        {
+                            stream.headers = hpackd.Decode([.. stream.head]);
+                        }
+
+                        streams[frame.streamID] = stream;
+                        opened = frame.streamID;
                     }
                     else
                     {

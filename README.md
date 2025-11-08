@@ -14,7 +14,7 @@ In the future I might make another library that uses this one to support a ready
 
 ## TODO / Features
 - [x] allow both sync and async code
-- [x] implement HTTP/0.9 (utterly useless, for educational purposes)
+- [x] implement HTTP/0.9 (utterly useless, for educational purposes only)
 - [x] implement HTTP/1.1
 - [x] implement HPACK
 - [x] implement HTTP/2
@@ -24,6 +24,9 @@ In the future I might make another library that uses this one to support a ready
 - [ ] implement HTTP/3
 - [x] improve compressor
 - [ ] support use of `Stream` instead of `byte[]`
+- [x] support trailing headers
+- [ ] support HTTP/1.1 pipelining
+- [ ] add comments/documentation
 
 ## Examples
 

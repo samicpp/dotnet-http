@@ -8,24 +8,22 @@ using System.Threading.Tasks;
 // for educational purposes only
 // HTTP/0.9 is useless
 
-public class Http09Client() : IHttpClient
+public class Http09Client : HttpClient
 {
-    public bool IsValid { get => true; }
-    public Dictionary<string, List<string>> Headers { get; } = [];
-    public string Host { get; } = "about:blank";
-    public string Method { get; set; } = "NILL";
-    public string Path { get; set; } = "/";
-    public string Version { get; } = "HTTP/0.9";
-    public List<byte> Body { get; } = [];
-    public bool HeadersComplete { get; set; } = false;
-    public bool BodyComplete { get; set; } = true;
+    public Http09Client()
+    {
+        IsValid = true;
+        Host = "about:blank";
+        Version = "HTTP/0.9";
+        BodyComplete = true;
+    }
 }
 
 public class Http09Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualHttpSocket
 {
     public bool IsHttps { get => socket.IsSecure; }
     protected readonly IDualSocket socket = socket;
-    Http09Client client = new();
+    readonly Http09Client client = new();
     public IHttpClient Client { get => client; }
     public bool HeadSent { get; set; } = true;
     public bool IsClosed { get; set; }

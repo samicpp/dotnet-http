@@ -8,6 +8,16 @@ using Samicpp.Http;
 using Samicpp.Http.Http2;
 using Samicpp.Http.WebSocket;
 
+public class Http1Client : HttpClient
+{
+    public Http1Client()
+    {
+        Version = "HTTP/1.1";
+    }
+    public string ClientVersion = "";
+    public Dictionary<string, List<string>> TrailingHeaders { get; set; } = [];
+}
+
 public class Http1Exception(string? message, Exception? other) : HttpException(message, other)
 {
     public sealed class WebSocketNotSupported(string? err = null) : Http1Exception(err, null);
@@ -34,7 +44,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         GC.SuppressFinalize(this);
     }
 
-    private readonly HttpClient client = new();
+    private readonly Http1Client client = new();
     public IHttpClient Client { get => client; }
     public bool IsClosed { get; set; }
     public bool HeadSent { get; set; }
@@ -60,7 +70,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         }
     } = CompressionType.None;
 
-    private readonly Dictionary<string, List<string>> headers = new(/*StringComparer.OrdinalIgnoreCase*/) { { "Connection", ["close"] } };
+    private readonly Dictionary<string, List<string>> headers = new(StringComparer.OrdinalIgnoreCase) { { "Connection", ["close"] } };
     public void SetHeader(string name, string value) => headers[name] = [value];
     public void AddHeader(string name, string value)
     {
@@ -69,7 +79,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
     }
     public List<string> DelHeader(string name)
     {
-        var head = headers[name];
+        var head = headers.GetValueOrDefault(name);
         if (head == null) return [];
         headers.Remove(name);
         return head;
@@ -85,20 +95,21 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
             var lines = text.Split("\n");
             var mpv = lines[0].Split(" ", 3);
 
-            if (mpv.Length < 3) { client.IsValid = false; goto end; }
+            if (mpv.Length < 3) client.IsValid = false;
 
             client.Method = mpv[0];
             client.Path = mpv[1];
-            client.Version = "HTTP/1.1"; // = mpv[2];
+            client.Version = "HTTP/1.1";
+            client.ClientVersion = mpv[2];
 
             foreach (var header in lines[1..])
             {
                 if (string.IsNullOrWhiteSpace(header)) continue;
                 var hv = header.Split(":", 2);
 
-                if (mpv.Length < 2) { client.IsValid = false; goto end; }
+                if (hv.Length < 2) { client.IsValid = false; break; }
 
-                var h = hv[0].Trim().ToLower();
+                var h = hv[0].Trim();
                 var v = hv[1].Trim();
 
                 if (h == "host") client.Host = v;
@@ -106,7 +117,6 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
                 else client.Headers[h] = [v];
             }
 
-            end:
             client.HeadersComplete = true;
         }
         else if (!client.BodyComplete)
@@ -126,6 +136,24 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
                 if (length <= 0)
                 {
                     client.BodyComplete = true;
+                    var hasTrail = socket.ReadUntil([13, 10]);
+                    if (hasTrail.Count > 2)
+                    {
+                        var trail = Encoding.UTF8.GetString([..hasTrail , .. socket.ReadUntil([13, 10])]);
+                        foreach (var header in trail.Split())
+                        {
+                            if (string.IsNullOrWhiteSpace(header)) continue;
+                            var hv = header.Split(":", 2);
+
+                            if (hv.Length < 2) { client.IsValid = false; break; }
+
+                            var h = hv[0].Trim().ToLower();
+                            var v = hv[1].Trim();
+
+                            if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
+                            else client.Headers[h] = [v];
+                        }
+                    }
                 }
                 else
                 {
@@ -149,28 +177,28 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
             var lines = text.Split("\n");
             var mpv = lines[0].Split(" ", 3);
 
-            if (mpv.Length < 3) { client.IsValid = false; goto end; }
+            if (mpv.Length < 3) client.IsValid = false;
 
             client.Method = mpv[0];
             client.Path = mpv[1];
-            client.Version = "HTTP/1.1"; // = mpv[2];
+            client.Version = "HTTP/1.1";
+            client.ClientVersion = mpv[2];
 
             foreach (var header in lines[1..])
             {
                 if (string.IsNullOrWhiteSpace(header)) continue;
                 var hv = header.Split(":", 2);
 
-                if (mpv.Length < 2) { client.IsValid = false; goto end;}
+                if (hv.Length < 2) { client.IsValid = false; break; }
 
-                var h = hv[0].Trim().ToLower();
+                var h = hv[0].Trim();
                 var v = hv[1].Trim();
 
                 if (h == "host") client.Host = v;
                 else if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
                 else client.Headers[h] = [v];
             }
-            
-            end:
+
             client.HeadersComplete = true;
         }
         else if (!client.BodyComplete)
@@ -190,6 +218,24 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
                 if (length <= 0)
                 {
                     client.BodyComplete = true;
+                    var hasTrail = await socket.ReadUntilAsync([13, 10]);
+                    if (hasTrail.Count > 2)
+                    {
+                        var trail = Encoding.UTF8.GetString([.. hasTrail, .. await socket.ReadUntilAsync([13, 10])]);
+                        foreach (var header in trail.Split())
+                        {
+                            if (string.IsNullOrWhiteSpace(header)) continue;
+                            var hv = header.Split(":", 2);
+
+                            if (hv.Length < 2) { client.IsValid = false; break; }
+
+                            var h = hv[0].Trim().ToLower();
+                            var v = hv[1].Trim();
+
+                            if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
+                            else client.Headers[h] = [v];
+                        }
+                    }
                 }
                 else
                 {
@@ -247,9 +293,20 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         {
             var compressed = compressor.Finish(bytes);
             // TODO: add support for sending final headers
+            byte[] term = [13, 10, 48, 13, 10, 13, 10];
             socket.Write(Encoding.UTF8.GetBytes(compressed.Length.ToString("X") + "\r\n"));
             socket.Write(compressed);
-            socket.Write([13, 10, 48, 13, 10, 13, 10]);
+            socket.Write(term);
+
+            if (headers.Count != 0)
+            {
+                string text = "";
+                foreach (var (h, vs) in headers) foreach (var v in vs) text += $"{h}: {v}\r\n";
+                socket.Write(Encoding.UTF8.GetBytes(text));
+            }
+
+            byte[] crlf = [13, 10];
+            socket.Write(crlf);
         }
     }
 
@@ -273,6 +330,16 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
             await socket.WriteAsync(Encoding.UTF8.GetBytes(compressed.Length.ToString("X") + "\r\n"));
             await socket.WriteAsync(compressed);
             await socket.WriteAsync(term);
+
+            if (headers.Count != 0)
+            {
+                string text = "";
+                foreach (var (h, vs) in headers) foreach (var v in vs) text += $"{h}: {v}\r\n";
+                await socket.WriteAsync(Encoding.UTF8.GetBytes(text));
+            }
+
+            byte[] crlf = [13, 10];
+            await socket.WriteAsync(crlf);
         }
     }
 
@@ -285,6 +352,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
             {
                 headers["Transfer-Encoding"] = ["chunked"];
                 SendHead();
+                headers.Clear();
             }
             var compressed = compressor.Write(bytes);
             socket.Write(Encoding.UTF8.GetBytes(compressed.Length.ToString("X") + "\r\n"));
@@ -302,6 +370,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
             {
                 headers["Transfer-Encoding"] = ["chunked"];
                 await SendHeadAsync();
+                headers.Clear();
             }
             var compressed = await compressor.WriteAsync(bytes);
             await socket.WriteAsync(Encoding.UTF8.GetBytes(compressed.Length.ToString("X") + "\r\n"));

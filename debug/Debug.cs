@@ -5,13 +5,20 @@ using System.Text;
 using Samicpp.Http;
 
 
+public class FakeHttpClient: HttpClient
+{
+    public FakeHttpClient()
+    {
+        IsValid = true;
+    }
+}
 // TODO: add more options
 public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
 {
     public bool IsHttps { get => true; }
 
     readonly HttpClient _client = client;
-    readonly HttpClient client = new();
+    readonly FakeHttpClient client = new();
     public IHttpClient Client { get => client; }
     public bool IsClosed { get; set; }
     public bool HeadSent { get; set; }
@@ -27,35 +34,41 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
     public CompressionType Compression { get; set { field = value; Console.WriteLine($"set compression to {value}"); } } = CompressionType.None;
 
     private readonly Dictionary<string, List<string>> headers = new() { { "Connection", ["close"] } };
-    public void SetHeader(string name, string value) {
-        if (!HeadSent)
+    public void SetHeader(string name, string value)
+    {
+        if (!IsClosed)
         {
-            Console.WriteLine($"[ ] set header {name}: {value}");
+            if (!HeadSent) Console.WriteLine($"[ ] set header {name}: {value}");
+            else Console.WriteLine($"\x1b[33m[~]\x1b[0m set header {name} after head sent");
             headers[name] = [value];
         }
         else
         {
-            Console.WriteLine($"\x1b[31m[X]\x1b[0m setting header {name} after head sent");
+            Console.WriteLine($"\x1b[31m[X]\x1b[0m setting header {name} after closed");
         }
     }
     public void AddHeader(string name, string value)
     {
-        if (!HeadSent)
+        if (!IsClosed)
         {
-            Console.WriteLine($"[ ] adding {value} to header {name}");
+            if (!HeadSent) Console.WriteLine($"[ ] adding header {name}: {value}");
+            else Console.WriteLine($"\x1b[33m[~]\x1b[0m adding header {name} after head sent");
+
             if (headers.TryGetValue(name, out List<string>? ls)) ls.Add(value);
             else headers[name] = [value];
         }
         else
         {
-            Console.WriteLine($"\x1b[31m[X]\x1b[0m adding to header {name} after head sent");
+            Console.WriteLine($"\x1b[31m[X]\x1b[0m adding to header {name} after closed");
         }
     }
     public List<string> DelHeader(string name)
     {
-        if (!HeadSent)
+        if (!IsClosed)
         {
-            Console.WriteLine($"\x1b[33m[~]\x1b[0m removing header {name}");
+            if (!HeadSent) Console.WriteLine($"[ ] removing header {name}");
+            else Console.WriteLine($"\x1b[33m[~]\x1b[0m removing header {name} after head sent");
+
             var head = headers[name];
             if (head == null)
             {
@@ -69,10 +82,10 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
         }
         else
         {
-            Console.WriteLine($"\x1b[31m[X]\x1b[0m deleting header {name} after head sent");
+            Console.WriteLine($"\x1b[31m[X]\x1b[0m deleting header {name} after closed");
             return [];
         }
-        
+
     }
 
     public Task<IHttpClient> ReadClientAsync() => Task.FromResult(ReadClient());
@@ -114,7 +127,7 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
     public void Close(byte[] data)
     {
         if (!client.BodyComplete) Console.WriteLine("\x1b[33m[~]\x1b[0m closing connection before fully read client");
-        if (!IsClosed) 
+        if (!IsClosed)
         {
             Console.WriteLine($"\x1b[32m[*]\x1b[0m closing connection with {data.Length} bytes");
             HeadSent = true;
@@ -134,7 +147,7 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
     public void Write(byte[] data)
     {
         if (!client.BodyComplete) Console.WriteLine("\x1b[33m[~]\x1b[0m writing to connection before fully read client");
-        if (!IsClosed) 
+        if (!IsClosed)
         {
             Console.WriteLine($"\x1b[32m[*]\x1b[0m writing to connection with {data.Length} bytes");
             HeadSent = true;
@@ -163,8 +176,12 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
         else Console.WriteLine($"\x1b[32m[*]\x1b[0m disposed fake socket");
         GC.SuppressFinalize(this);
     }
-    public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
-    
+    public ValueTask DisposeAsync() {
+        Dispose();
+        GC.SuppressFinalize(this);
+        return ValueTask.CompletedTask; 
+    }
+
     ~FakeHttpSocket()
     {
         Console.WriteLine("\x1b[31m[X]\x1b[0m fake socket not disposed");

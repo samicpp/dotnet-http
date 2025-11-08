@@ -6,6 +6,16 @@ using System.Threading.Tasks;
 using Samicpp.Http;
 using Samicpp.Http.Http2.Hpack;
 
+public class Http2Client : HttpClient
+{
+    public Http2Client()
+    {
+        IsValid = true;
+        Version = "HTTP/2";
+    }
+    public string Scheme = "";
+}
+
 public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
 {
     public readonly Http2Session conn = conn;
@@ -14,7 +24,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
 
     public bool IsHttps { get => conn.IsSecure; }
 
-    readonly HttpClient client = new();
+    readonly Http2Client client = new();
     public IHttpClient Client { get => client; }
     public bool IsClosed { get; set; }
     public bool HeadSent { get; set; }
@@ -28,7 +38,8 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     public string StatusMessage { get; set; } = "OK"; // doesnt matter
 
     private Compressor compressor = new();
-    public CompressionType Compression { 
+    public CompressionType Compression
+    {
         get; set
         {
             if (HeadSent) throw new Http2Exception.HeadersSent("cannot set compression");
@@ -42,10 +53,10 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
             //     case CompressionType.Deflate: headers["content-encoding"] = ["deflate"]; break;
             //     case CompressionType.Brotli: headers["content-encoding"] = ["br"]; break;
             // }
-        } 
+        }
     } = CompressionType.None;
 
-    private readonly Dictionary<string, List<string>> headers = [];
+    private readonly Dictionary<string, List<string>> headers = new(StringComparer.OrdinalIgnoreCase);
     public void SetHeader(string name, string value) => headers[name.ToLower()] = [value];
     public void AddHeader(string name, string value)
     {
@@ -54,7 +65,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     }
     public List<string> DelHeader(string name)
     {
-        var head = headers[name.ToLower()];
+        var head = headers.GetValueOrDefault(name);
         if (head == null) return [];
         headers.Remove(name);
         return head;
@@ -67,7 +78,6 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         client.Body = stream.body;
         client.HeadersComplete = stream.end_headers;
         client.BodyComplete = stream.end_stream;
-        client.Version = "HTTP/2";
 
         client.Headers.Clear();
         foreach (var (hb, vb) in stream.headers)
@@ -78,6 +88,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
             if (header == ":path") client.Path = value;
             else if (header == ":method") client.Method = value;
             else if (header == ":authority") client.Host = value;
+            else if (header == ":scheme") client.Scheme = value;
             else if (client.Headers.TryGetValue(header, out List<string>? ls)) ls.Add(value);
             else client.Headers[header] = [value];
         }
@@ -91,7 +102,6 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         client.Body = stream.body;
         client.HeadersComplete = stream.end_headers;
         client.BodyComplete = stream.end_stream;
-        client.Version = "HTTP/2";
 
         client.Headers.Clear();
         foreach (var (hb, vb) in stream.headers)
@@ -114,7 +124,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         if (!HeadSent && !IsClosed)
         {
             List<HeaderEntry> head = [
-                new(":status"u8.ToArray(), Encoding.UTF8.GetBytes(Status.ToString())),
+                new(":status"u8.ToArray(), Encoding.UTF8.GetBytes(Status.ToString())) { index = cache.Contains(":status") },
             ];
             foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), cache.Contains(header)));
             conn.SendHeaders(streamID, end, head.ToArray());
@@ -151,7 +161,17 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         else if (!IsClosed)
         {
             var compressed = compressor.Finish(data);
-            conn.SendData(streamID, true, compressed);
+            if (headers.Count == 0)
+            {
+                conn.SendData(streamID, true, compressed);
+            }
+            else
+            {
+                List<HeaderEntry> head = [];
+                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), cache.Contains(header)));
+                conn.SendData(streamID, false, compressed);
+                conn.SendHeaders(streamID, true, head.ToArray());
+            }
             IsClosed = true;
         }
     }
@@ -171,7 +191,17 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         else if (!IsClosed)
         {
             var compressed = await compressor.FinishAsync(data);
-            await conn.SendDataAsync(streamID, true, compressed);
+            if (headers.Count == 0)
+            {
+                await conn.SendDataAsync(streamID, true, compressed);
+            }
+            else
+            {
+                List<HeaderEntry> head = [];
+                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), cache.Contains(header)));
+                await conn.SendDataAsync(streamID, false, compressed);
+                await conn.SendHeadersAsync(streamID, true, head.ToArray());
+            }
             IsClosed = true;
         }
     }
@@ -181,7 +211,11 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     {
         if (!IsClosed)
         {
-            if (!HeadSent) SendHead();
+            if (!HeadSent)
+            {
+                SendHead();
+                headers.Clear();
+            }
             var compressed = compressor.Write(data);
             conn.SendData(streamID, false, compressed);
         }
@@ -192,7 +226,11 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     {
         if (!IsClosed)
         {
-            if (!HeadSent) await SendHeadAsync();
+            if (!HeadSent)
+            {
+                await SendHeadAsync();
+                headers.Clear();
+            }
             var compressed = await compressor.WriteAsync(data);
             await conn.SendDataAsync(streamID, false, compressed);
         }
