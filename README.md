@@ -19,7 +19,7 @@ In the future I might make another library that uses this one to support a ready
 - [x] implement HPACK
 - [x] implement HTTP/2
 - [x] implement WebSocket
-- [ ] implement QUIC (likely `System.Net.Quic` will be used instead)
+- [ ] implement QUIC
 - [ ] implement QPACK
 - [ ] implement HTTP/3
 - [x] improve compressor
