@@ -13,6 +13,7 @@ public class Http1Client : HttpClient
     public Http1Client()
     {
         Version = "HTTP/1.1";
+        IsValid = true;
     }
     public string ClientVersion = "";
     public Dictionary<string, List<string>> TrailingHeaders { get; set; } = [];
@@ -33,6 +34,9 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
     // ISocket IHttpSocket.Conn { get => socket; }
     public EndPoint? EndPoint => endPoint;
 
+    // bool upgraded = false;
+    // public bool Upgraded { get => upgraded; }
+
     public void Dispose()
     {
         socket.Dispose();
@@ -44,14 +48,14 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         GC.SuppressFinalize(this);
     }
 
-    private readonly Http1Client client = new();
+    private Http1Client client = new();
     public IHttpClient Client { get => client; }
     public bool IsClosed { get; set; }
     public bool HeadSent { get; set; }
 
     public int Status { get; set; } = 200;
     public string StatusMessage { get; set; } = "OK";
-    
+
     private Compressor compressor = new();
     public CompressionType Compression
     {
@@ -70,7 +74,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         }
     } = CompressionType.None;
 
-    private readonly Dictionary<string, List<string>> headers = new(StringComparer.OrdinalIgnoreCase) { { "Connection", ["close"] } };
+    private readonly Dictionary<string, List<string>> headers = new(StringComparer.OrdinalIgnoreCase);
     public void SetHeader(string name, string value) => headers[name] = [value];
     public void AddHeader(string name, string value)
     {
@@ -90,7 +94,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
     {
         if (!client.HeadersComplete)
         {
-            var buff = socket.ReadUntil([13, 10, 13, 10],[10, 10]);
+            var buff = socket.ReadUntil([13, 10, 13, 10], [10, 10]);
             var text = Encoding.UTF8.GetString([.. buff]);
             var lines = text.Split("\n");
             var mpv = lines[0].Split(" ", 3);
@@ -139,7 +143,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
                     var hasTrail = socket.ReadUntil([13, 10]);
                     if (hasTrail.Count > 2)
                     {
-                        var trail = Encoding.UTF8.GetString([..hasTrail , .. socket.ReadUntil([13, 10])]);
+                        var trail = Encoding.UTF8.GetString([.. hasTrail, .. socket.ReadUntil([13, 10])]);
                         foreach (var header in trail.Split())
                         {
                             if (string.IsNullOrWhiteSpace(header)) continue;
@@ -172,7 +176,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
     {
         if (!client.HeadersComplete)
         {
-            var buff = await socket.ReadUntilAsync([13, 10, 13, 10],[10, 10]);
+            var buff = await socket.ReadUntilAsync([13, 10, 13, 10], [10, 10]);
             var text = Encoding.UTF8.GetString([.. buff]);
             var lines = text.Split("\n");
             var mpv = lines[0].Split(" ", 3);
@@ -434,7 +438,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         {
             settings = Http2Settings.Default();
         }
-        
+
         socket.Write(H2C_UPGRADE);
         var conn = new Http2Session(socket, settings, EndPoint);
 
@@ -463,7 +467,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         {
             settings = Http2Settings.Default();
         }
-        
+
         await socket.WriteAsync(H2C_UPGRADE);
         var conn = new Http2Session(socket, settings, EndPoint);
 
@@ -479,4 +483,6 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
 
         return conn;
     }
+
+    // public void Next() { }
 }
