@@ -165,11 +165,11 @@ public readonly struct WebSocketFrame(
 }
 
 public enum WebSocketFrameType{
-    Continuation,         // 0x0
-    Text,                 // 0x1
-    Binary,               // 0x2
-    ConnectionClose,      // 0x8
-    Ping,                 // 0x9
-    Pong,                 // 0xA
-    Other,                // 
+    Continuation = 0x0,         // 0x0
+    Text = 0x1,                 // 0x1
+    Binary = 0x2,               // 0x2
+    ConnectionClose = 0x8,      // 0x8
+    Ping = 0x9,                 // 0x9
+    Pong = 0xa,                 // 0xA
+    Other,                      // 
 }

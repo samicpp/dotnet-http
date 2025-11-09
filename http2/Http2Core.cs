@@ -194,15 +194,15 @@ public readonly struct Http2Settings(int? headerTableSize, int? enablePush, int?
 
 public enum Http2FrameType
 {
-    Data,          // 0x0
-    Headers,       // 0x1
-    Priority,      // 0x2
-    RstStream,     // 0x3
-    Settings,      // 0x4
-    PushPromise,   // 0x5
-    Ping,          // 0x6
-    Goaway,        // 0x7
-    WindowUpdate,  // 0x8
-    Continuation,  // 0x9
-    Unknown,       // >0x9
+    Data = 0x0,          // 0x0
+    Headers = 0x1,       // 0x1
+    Priority = 0x2,      // 0x2
+    RstStream = 0x3,     // 0x3
+    Settings = 0x4,      // 0x4
+    PushPromise = 0x5,   // 0x5
+    Ping = 0x6,          // 0x6
+    Goaway = 0x7,        // 0x7
+    WindowUpdate = 0x8,  // 0x8
+    Continuation = 0x9,  // 0x9
+    Unknown,             // >0x9
 }
