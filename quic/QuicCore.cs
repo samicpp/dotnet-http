@@ -3,7 +3,7 @@ namespace Samicpp.Http.Quic;
 // http://datatracker.ietf.org/doc/html/rfc9000
 
 // 12.4 #section-12.4
-public enum QuicFrameType
+public enum QuicFrameType : byte
 {
     Padding = 0x00,                 // 19.1  | IH01 | NP
     Ping = 0x01,                    // 19.2  | IH01
@@ -24,7 +24,7 @@ public enum QuicFrameType
     StreamsBlockedUni = 0x17,       // 19.14 | __01
     NewConnectionId = 0x18,         // 19.15 | __01 | P
     RetireConnectionId = 0x19,      // 19.16 | __01
-    PathChallange = 0x1a,           // 19.17 | __01 | P
+    PathChallenge = 0x1a,           // 19.17 | __01 | P
     PathResponse = 0x1b,            // 19.18 | ___1 | P
     ConnectionCloseQuic = 0x1c,     // 19.19 | IH01 | N
     ConnectionCloseApp = 0x1d,      // 19.19 | IH01 | N

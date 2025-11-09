@@ -4,7 +4,7 @@ namespace Samicpp.Http.Http3;
 
 
 // 11.2.1 #name-frame-types
-public enum Http3FrameType
+public enum Http3FrameType : byte
 {
     Data = 0x0,         // 7.2.1
     Headers = 0x1,      // 7.2.1

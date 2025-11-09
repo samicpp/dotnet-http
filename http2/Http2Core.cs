@@ -192,7 +192,7 @@ public readonly struct Http2Settings(int? headerTableSize, int? enablePush, int?
     }
 }
 
-public enum Http2FrameType
+public enum Http2FrameType : byte
 {
     Data = 0x0,          // 0x0
     Headers = 0x1,       // 0x1
