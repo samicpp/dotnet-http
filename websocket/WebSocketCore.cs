@@ -164,7 +164,8 @@ public readonly struct WebSocketFrame(
     }
 }
 
-public enum WebSocketFrameType : byte{
+public enum WebSocketFrameType : byte
+{
     Continuation = 0x0,         // 0x0
     Text = 0x1,                 // 0x1
     Binary = 0x2,               // 0x2
