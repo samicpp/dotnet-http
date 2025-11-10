@@ -16,7 +16,7 @@ public class Http1Client : HttpClient
         IsValid = true;
     }
     public string ClientVersion = "";
-    public Dictionary<string, List<string>> TrailingHeaders { get; set; } = [];
+    // public Dictionary<string, List<string>> TrailingHeaders { get; set; } = [];
 }
 
 public class Http1Exception(string? message, Exception? other) : HttpException(message, other)
@@ -116,7 +116,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
                 var h = hv[0].Trim();
                 var v = hv[1].Trim();
 
-                if (h == "host") client.Host = v;
+                if (h.Equals("host", StringComparison.CurrentCultureIgnoreCase)) client.Host = v;
                 else if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
                 else client.Headers[h] = [v];
             }
@@ -198,7 +198,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
                 var h = hv[0].Trim();
                 var v = hv[1].Trim();
 
-                if (h == "host") client.Host = v;
+                if (h.Equals("host", StringComparison.CurrentCultureIgnoreCase)) client.Host = v;
                 else if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
                 else client.Headers[h] = [v];
             }
