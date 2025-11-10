@@ -45,6 +45,18 @@ public readonly struct QuicShortPacket()
 
 
 // 12.4 #section-12.4
+
+// I: Initial (Section 17.2.2)
+// H: Handshake (Section 17.2.4)
+// 0: 0-RTT (Section 17.2.3)
+// 1: 1-RTT (Section 17.3.1)
+// ih: Only a CONNECTION_CLOSE frame of type 0x1c can appear in Initial or Handshake packets.
+
+// N: Packets containing only frames with this marking are not ack-eliciting; see Section 13.2.
+// C: Packets containing only frames with this marking do not count toward bytes in flight for congestion control purposes; see [QUIC-RECOVERY].
+// P: Packets containing only frames with this marking can be used to probe new network paths during connection migration; see Section 9.1.
+// F: The contents of frames with this marking are flow controlled; see Section 4.
+
 public enum QuicFrameType : ulong
 {
     Padding = 0x00,                 // 19.1  | IH01 | NP
