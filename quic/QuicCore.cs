@@ -93,14 +93,14 @@ public interface IQuicFrame
 
     public static (int, long) ParseVarint(int offset, byte[] bytes)
     {
-        int first = bytes[offset++];
-        int len = (first & 0b1100_0000) >> 6;
+        long first = bytes[offset++];
+        long len = (first & 0b1100_0000) >> 6;
         long varint = len switch
         {
-            0 => first & 0b0011_1111,
-            1 => (first & 0b0011_1111) << 8 | bytes[offset++],
-            2 => (first & 0b0011_1111) << 24 | bytes[offset++] << 16 | bytes[offset++] << 8 | bytes[offset++],
-            4 => (first & 0b0011_1111) << 56 | bytes[offset++] << 48 | bytes[offset++] << 40 | bytes[offset++] << 32 | bytes[offset++] << 24 | bytes[offset++] << 16 | bytes[offset++] << 8 | bytes[offset++],
+            0 => first & 0b0011_1111L,
+            1 => (first & 0b0011_1111L) << 8 | bytes[offset++],
+            2 => (first & 0b0011_1111L) << 24 | (long)bytes[offset++] << 16 | (long)bytes[offset++] << 8 | bytes[offset++],
+            4 => (first & 0b0011_1111L) << 56 | (long)bytes[offset++] << 48 | (long)bytes[offset++] << 40 | (long)bytes[offset++] << 32 | (long)bytes[offset++] << 24 | (long)bytes[offset++] << 16 | (long)bytes[offset++] << 8 | bytes[offset++],
             _ => 0, // impossible outcome
         };
         return (offset, varint);
