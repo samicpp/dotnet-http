@@ -197,7 +197,26 @@ public interface IQuicFrame
             1 => QuicPing.Parse(ref offset, bytes),
             2 => QuicAck.Parse(ref offset, bytes, false),
             3 => QuicAck.Parse(ref offset, bytes, true),
-            // >= 8 and <= 15 => QuicFrameType.Stream,
+            4 => QuicResetStream.Parse(ref offset, bytes),
+            5 => QuicStopSending.Parse(ref offset, bytes),
+            6 => QuicCrypto.Parse(ref offset, bytes),
+            7 => QuicNewToken.Parse(ref offset, bytes),
+            >= 8 and <= 15 => QuicStreamFrame.Parse(ref offset, bytes, (byte)varint),
+            16 => QuicMaxData.Parse(ref offset, bytes),
+            17 => QuicMaxStreamData.Parse(ref offset, bytes),
+            18 => QuicMaxStreams.Parse(ref offset, bytes, true),
+            19 => QuicMaxStreams.Parse(ref offset, bytes, false),
+            20 => QuicDataBlocked.Parse(ref offset, bytes),
+            21 => QuicStreamDataBlocked.Parse(ref offset, bytes),
+            22 => QuicStreamBlocked.Parse(ref offset, bytes, true),
+            23 => QuicStreamBlocked.Parse(ref offset, bytes, false),
+            24 => QuicNewConnectionId.Parse(ref offset, bytes),
+            25 => QuicRetireConnectionId.Parse(ref offset, bytes),
+            26 => QuicPathChallenge.Parse(ref offset, bytes),
+            27 => QuicPathResponse.Parse(ref offset, bytes),
+            28 => QuicConnectionClose.Parse(ref offset, bytes, false),
+            29 => QuicConnectionClose.Parse(ref offset, bytes, true),
+            30 => QuicHandshakeDone.Parse(ref offset, bytes),
 
             _ => null,
         };
@@ -383,16 +402,40 @@ public readonly struct QuicNewToken() : IQuicFrame // 0x07 -> 7
 }
 
 // 19.8 #name-stream-frames
-public readonly struct QuicStreamFrame(byte bits) : IQuicFrame // 0x08 - 0x0f -> 8 - 15
+public readonly struct QuicStreamFrame() : IQuicFrame // 0x08 - 0x0f -> 8 - 15
 {
     public QuicFrameType Type { get; } = QuicFrameType.Stream;
-    public bool Fin { get; } = (bits & 0b001) != 0;
-    public bool Len { get; } = (bits & 0b010) != 0;
-    public bool Off { get; } = (bits & 0b100) != 0;
+    public bool Fin { get; init; } //= (bits & 0b001) != 0;
+    public bool Len { get; init; } //= (bits & 0b010) != 0;
+    public bool Off { get; init; } //= (bits & 0b100) != 0;
     public long StreamId { get; init; } // varint
     public long Offset { get; init; } // varint
     public long Length { get; init; } // varint
     public byte[] Data { get; init; } = [];
+
+    public static QuicStreamFrame Parse(ref int offset, byte[] bytes, byte bits)
+    {
+        bool fin = (bits & 0b001) != 0;
+        bool len = (bits & 0b010) != 0;
+        bool off = (bits & 0b100) != 0;
+
+        long streamId = IQuicFrame.VarintFrom(ref offset, bytes);
+        long offs = 0;
+        long length = 0;
+
+        if (off) offs = IQuicFrame.VarintFrom(ref offset, bytes);
+        if (len) length = IQuicFrame.VarintFrom(ref offset, bytes);
+        
+        return new()
+        {
+            Fin = fin,
+            Len = len,
+            Off = off,
+            StreamId = streamId,
+            Offset = offs,
+            Length = length,
+        };
+    }
 }
 
 // 19.9 #name-max_data-frames
@@ -400,6 +443,16 @@ public readonly struct QuicMaxData() : IQuicFrame // 0x10 -> 16
 {
     public QuicFrameType Type { get; } = QuicFrameType.MaxData;
     public long Maximum { get; init; } // varint
+
+    public static QuicMaxData Parse(ref int offset, byte[] bytes)
+    {
+        long max = IQuicFrame.VarintFrom(ref offset, bytes);
+        
+        return new()
+        {
+            Maximum = max,
+        };
+    }
 }
 
 // 19.10 #name-max_stream_data-frames
@@ -408,6 +461,18 @@ public readonly struct QuicMaxStreamData() : IQuicFrame // 0x11 -> 17
     public QuicFrameType Type { get; } = QuicFrameType.MaxStreamData;
     public long StreamId { get; init; } // varint
     public long Maximum { get; init; } // varint
+
+    public static QuicMaxStreamData Parse(ref int offset, byte[] bytes)
+    {
+        long sid = IQuicFrame.VarintFrom(ref offset, bytes);
+        long max = IQuicFrame.VarintFrom(ref offset, bytes);
+        
+        return new()
+        {
+            StreamId = sid,
+            Maximum = max,
+        };
+    }
 }
 
 // 19.11 #name-max_streams-frames
@@ -415,6 +480,16 @@ public readonly struct QuicMaxStreams(bool bidi) : IQuicFrame // 0x12 - 0x13 -> 
 {
     public QuicFrameType Type { get; } = bidi ? QuicFrameType.MaxStreamsBidi : QuicFrameType.MaxStreamsUni;
     public long Maximum { get; init; } // varint
+
+    public static QuicMaxStreams Parse(ref int offset, byte[] bytes, bool bidi)
+    {
+        long max = IQuicFrame.VarintFrom(ref offset, bytes);
+        
+        return new(bidi)
+        {
+            Maximum = max,
+        };
+    }
 }
 
 // 19.12 #name-data_blocked-frames
@@ -422,6 +497,16 @@ public readonly struct QuicDataBlocked() : IQuicFrame // 0x14 -> 20
 {
     public QuicFrameType Type { get; } = QuicFrameType.DataBlocked;
     public long Maximum { get; init; } // varint
+
+    public static QuicDataBlocked Parse(ref int offset, byte[] bytes)
+    {
+        long max = IQuicFrame.VarintFrom(ref offset, bytes);
+        
+        return new()
+        {
+            Maximum = max,
+        };
+    }
 }
 
 // 19.13 #name-stream_data_blocked-frames
@@ -430,6 +515,18 @@ public readonly struct QuicStreamDataBlocked() : IQuicFrame // 0x15 -> 21
     public QuicFrameType Type { get; } = QuicFrameType.StreamDataBlocked;
     public long StreamId { get; init; } // varint
     public long Maximum { get; init; } // varint
+
+    public static QuicStreamDataBlocked Parse(ref int offset, byte[] bytes)
+    {
+        long sid = IQuicFrame.VarintFrom(ref offset, bytes);
+        long max = IQuicFrame.VarintFrom(ref offset, bytes);
+        
+        return new()
+        {
+            StreamId = sid,
+            Maximum = max,
+        };
+    }
 }
 
 // 19.14 #name-streams_blocked-frames
@@ -437,6 +534,16 @@ public readonly struct QuicStreamBlocked(bool bidi) : IQuicFrame // 0x16 - 0x17 
 {
     public QuicFrameType Type { get; } = bidi ? QuicFrameType.StreamsBlockedBidi : QuicFrameType.StreamsBlockedUni;
     public long Maximum { get; init; } // varint // Maximum Streams
+
+    public static QuicStreamBlocked Parse(ref int offset, byte[] bytes, bool bidi)
+    {
+        long max = IQuicFrame.VarintFrom(ref offset, bytes);
+        
+        return new(bidi)
+        {
+            Maximum = max,
+        };
+    }
 }
 
 // 19.15 #name-new_connection_id-frames
@@ -448,6 +555,26 @@ public readonly struct QuicNewConnectionId() : IQuicFrame // 0x18 -> 24
     public byte Length { get; init; } // 1 - 20
     public byte[] ConnectionId { get; init; } = [];
     public byte[] StatelessResetToken { get; init; } = []; // 16 bytes | 128 bits
+
+    public static QuicNewConnectionId Parse(ref int offset, byte[] bytes)
+    {
+        long seq = IQuicFrame.VarintFrom(ref offset, bytes);
+        long ret = IQuicFrame.VarintFrom(ref offset, bytes);
+
+        byte length = bytes[offset++];
+        byte[] cid = bytes[offset..(offset + length)];
+        byte[] rst = bytes[offset..(offset + 16)];
+        offset += length + 16;
+        
+        return new()
+        {
+            SequenceNumber = seq,
+            RetirePriorTo = ret,
+            Length = length,
+            ConnectionId = cid,
+            StatelessResetToken = rst,
+        };
+    }
 }
 
 // 19.16 #name-retire_connection_id-frames
@@ -455,6 +582,16 @@ public readonly struct QuicRetireConnectionId() : IQuicFrame // 0x19 -> 25
 {
     public QuicFrameType Type { get; } = QuicFrameType.RetireConnectionId;
     public long SequenceNumber { get; init; } // varint
+
+    public static QuicRetireConnectionId Parse(ref int offset, byte[] bytes)
+    {
+        long sequence = IQuicFrame.VarintFrom(ref offset, bytes);
+        
+        return new()
+        {
+            SequenceNumber = sequence,
+        };
+    }
 }
 
 // 19.17 #name-path_challenge-frames
@@ -462,6 +599,17 @@ public readonly struct QuicPathChallenge() : IQuicFrame // 0x1a -> 26
 {
     public QuicFrameType Type { get; } = QuicFrameType.PathChallenge;
     public byte[] Data { get; init; } = []; // 64 bits
+
+    public static QuicPathChallenge Parse(ref int offset, byte[] bytes)
+    {
+        byte[] data = bytes[offset..(offset + 8)];
+        offset += 8;
+        
+        return new()
+        {
+            Data = data,
+        };
+    }
 }
 
 // 19.18 #name-path_response-frames
@@ -469,6 +617,17 @@ public readonly struct QuicPathResponse() : IQuicFrame // 0x1b -> 27
 {
     public QuicFrameType Type { get; } = QuicFrameType.PathResponse;
     public byte[] Data { get; init; } = []; // 64 bits
+
+    public static QuicPathResponse Parse(ref int offset, byte[] bytes)
+    {
+        byte[] data = bytes[offset..(offset + 8)];
+        offset += 8;
+        
+        return new()
+        {
+            Data = data,
+        };
+    }
 }
 
 // 19.19 #name-connection_close-frames
@@ -478,7 +637,24 @@ public readonly struct QuicConnectionClose(bool app) : IQuicFrame // 0x1c - 0x1d
     public long ErrorCode { get; init; } // varint
     public long FrameType { get; init; } // varint
     public long PhraseLength { get; init; } // varint
-    public byte[] ReasonPhrase { get; init; } = []; // 64 bits
+    public byte[] ReasonPhrase { get; init; } = [];
+
+    public static QuicConnectionClose Parse(ref int offset, byte[] bytes, bool app)
+    {
+        long code = IQuicFrame.VarintFrom(ref offset, bytes);
+        long type = IQuicFrame.VarintFrom(ref offset, bytes);
+        long length = IQuicFrame.VarintFrom(ref offset, bytes);
+        byte[] reason = bytes[offset..(int)(offset + length)];
+        offset += (int)length;
+        
+        return new(app)
+        {
+            ErrorCode = code,
+            FrameType = type,
+            PhraseLength = length,
+            ReasonPhrase = reason,
+        };
+    }
 }
 
 // 19.20 #name-handshake_done-frames
@@ -486,8 +662,8 @@ public readonly struct QuicHandshakeDone() : IQuicFrame // 0x1e -> 30
 {
     public QuicFrameType Type { get; } = QuicFrameType.HandshakeDone;
 
-    public static (int, QuicHandshakeDone) Parse(int offset, byte[] bytes)
+    public static QuicHandshakeDone Parse(ref int offset, byte[] bytes)
     {
-        return (offset, new());
+        return new();
     }
 }
