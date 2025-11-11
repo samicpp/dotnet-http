@@ -10,14 +10,13 @@ public enum QuicPacketType : byte
     ZeroRtt = 0b01,    // 17.2.3
     Handshake = 0b10,  // 17.2.4
     Retry = 0b11,      // 17.2.5
-    Invalid,
 }
 
 // 17.2 #name-long-header-packets
 public readonly struct QuicLongPacket()
 {
     public byte HeaderForm { get; } = 1;
-    public byte FixedBit { get; } = 1;
+    public bool FixedBit { get; init; } // 17.2.1 // if 0 then version negotiation packet
     public QuicPacketType Type { get; init; }
     public byte TypeSpecific { get; init; } // Type-Specific Bits
     public uint Version { get; init; }
@@ -26,6 +25,31 @@ public readonly struct QuicLongPacket()
     public byte SciLength { get; init; } // Destination Connection ID
     public byte[] Sci { get; init; } = []; // Destination Connection ID
     public byte[] TsPayload { get; init; } = []; // Type-Specific Payload 
+
+    public static QuicLongPacket Parse(byte[] bytes)
+    {
+        bool fixedBit = (bytes[0] & 0b0100_0000) != 0;
+        QuicPacketType type = (QuicPacketType)((bytes[0] & 0b0011_0000) >> 4);
+        byte typeSpecific = (byte)(bytes[0] & 0b1111);
+        uint version = (uint)bytes[1] << 24 | (uint)bytes[2] << 16 | (uint)bytes[3] << 8 | bytes[4];
+        byte dcil = bytes[5];
+        byte[] dci = bytes[6..(dcil + 6)];
+        byte scil = bytes[dcil + 6];
+        byte[] sci = bytes[(dcil + 7)..(scil + dcil + 7)];
+        byte[] payload = bytes[(scil + dcil + 7)..];
+
+        return new()
+        {
+            FixedBit = fixedBit,
+            Type = type,
+            TypeSpecific = typeSpecific,
+            Version = version,
+            Dci = dci,
+            SciLength = scil,
+            Sci = sci,
+            TsPayload = payload,
+        };
+    }
 }
 
 // 17.3.1 #name-1-rtt-packet
@@ -33,13 +57,36 @@ public readonly struct QuicShortPacket()
 {
     public byte HeaderForm { get; } = 0;
     public byte FixedBit { get; } = 1;
-    public byte SpinBit { get; init; }
+    public bool SpinBit { get; init; }
     public byte Reserved { get; init; }
-    public byte KeyPhase { get; init; }
+    public bool KeyPhase { get; init; }
     public byte PacketNumberLength { get; init; }
     public byte[] Dci { get; init; } = []; // Destination Connection ID
     public uint PacketNumber { get; init; }
     public byte[] PacketPayload { get; init; } = [];
+
+    public static QuicShortPacket Parse(int DciLength, byte[] bytes)
+    {
+        bool spin = (bytes[0] & 0b0010_0000) != 0;
+        byte reserved = (byte)((bytes[0] & 0b0001_1000) >> 3);
+        bool keyphase = (bytes[0] & 0b0000_0100) != 0;
+        int pnLength = bytes[0] & 0b0000_0011 + 1;
+        byte[] dci = bytes[1..(DciLength + 1)];
+        uint pn = 0;
+        for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[i + DciLength + 1] << (8 * (pnLength - 1 - i));
+        byte[] payload = bytes[(DciLength + pnLength + 1)..];
+
+        return new()
+        {
+            SpinBit = spin,
+            Reserved = reserved,
+            KeyPhase = keyphase,
+            PacketNumberLength = (byte)pnLength,
+            Dci = dci,
+            PacketNumber = pn,
+            PacketPayload = payload,
+        };
+    }
 }
 
 
