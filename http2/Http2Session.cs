@@ -46,7 +46,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
     public Http2Frame? goaway = null;
     public Hpack.Encoder hpacke = new(settings.header_table_size ?? 4096);
     public Hpack.Decoder hpackd = new(settings.header_table_size ?? 4096);
-    private readonly LinkedList<Http2Frame> que = [];
+    private readonly LinkedList<Http2Frame> que = new();
 
     public bool IsSecure { get => socket.IsSecure; }
 
@@ -588,12 +588,12 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         }
     }
 
-    public void SendData(int streamID, bool end, byte[] payload)
+    public void SendData(int streamID, bool end, byte[] payload, bool priority = false)
     {
         // Http2Status stream;
-        sendLock.Wait();
+        sendLock.Wait(); bool sendLocked = true;
         streamLock.Wait(); bool streamLocked = true;
-        readLock.Wait();
+        // readLock.Wait(); bool readLocked = true;
         try
         {
             if (streams.TryGetValue(streamID, out var status))
@@ -638,7 +638,11 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                 if (window <= 0 || status.window <= 0)
                 {
                     streamLock.Release(); streamLocked = false;
-                    var frame = Readone(false);
+                    if (!priority)
+                    {
+                        sendLock.Release(); sendLocked = false;
+                    }
+                    var frame = Readone(true);
 
                     if (frame.type == Http2FrameType.WindowUpdate) Handle(frame);
                     else que.AddLast(frame);
@@ -658,17 +662,17 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         }
         finally
         {
-            readLock.Release();
-            sendLock.Release();
+            // if (readLocked) readLock.Release();
+            if (sendLocked) sendLock.Release();
             if (streamLocked) streamLock.Release();
         }
     }
-    public async Task SendDataAsync(int streamID, bool end, byte[] payload)
+    public async Task SendDataAsync(int streamID, bool end, byte[] payload, bool priority = false)
     {
         // Http2Status stream;
-        await sendLock.WaitAsync();
+        await sendLock.WaitAsync(); bool sendLocked = true;
         await streamLock.WaitAsync(); bool streamLocked = true;
-        // await readLock.WaitAsync();
+        // readLock.Wait(); bool readLocked = true;
         try
         {
             if (streams.TryGetValue(streamID, out var status))
@@ -694,10 +698,6 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
 
             int index = 0;
 
-            // Console.WriteLine("payload fragmenting");
-            // Console.WriteLine($"window = {window}");
-            // Console.WriteLine($"settings_initial_window_size = {settings.initial_window_size}");
-            // Console.WriteLine($"settings_max_frame_size = {settings.max_frame_size}");
             while (payload.Length - index > 0)
             {
                 var mfs = settings.max_frame_size ?? 16384;
@@ -706,7 +706,6 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
 
                 if (min > 0)
                 {
-                    // Console.WriteLine($"sending {min} bytes");
                     await SendFrameAsync(streamID, 0, 0, [], payload[index..(index + min)], []);
                 }
 
@@ -715,19 +714,20 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                 status.window -= min;
                 streams[streamID] = status;
 
-                // Console.WriteLine($"minimum = {min}\nindex = {index}\nwindow = {window}\nstream window = {status.window}");
-
                 if (window <= 0 || status.window <= 0)
                 {
                     streamLock.Release(); streamLocked = false;
-                    var frame = await ReadoneAsync();
+                    if (!priority)
+                    {
+                        sendLock.Release(); sendLocked = false;
+                    }
+                    var frame = await ReadoneAsync(true);
 
-                    // Console.WriteLine($"received {frame.type} frame");
                     if (frame.type == Http2FrameType.WindowUpdate) await HandleAsync(frame);
                     else que.AddLast(frame);
-                    // await new TaskCompletionSource<bool>().Task;
 
                     await streamLock.WaitAsync(); streamLocked = true;
+                    if (!sendLocked) { await sendLock.WaitAsync(); sendLocked = true; }
                     status = streams[streamID];
                 }
 
@@ -735,7 +735,6 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
             }
 
             int rem = payload.Length - index;
-            // Console.WriteLine("remaining data can be sent in 1 frame");
             await SendFrameAsync(streamID, 0, end ? (byte)1 : (byte)0, [], payload[index..], []);
             window -= rem;
             status.window -= rem;
@@ -743,9 +742,9 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         }
         finally
         {
-            sendLock.Release();
+            // if (readLocked) readLock.Release();
+            if (sendLocked) sendLock.Release();
             if (streamLocked) streamLock.Release();
-            // readLock.Release();
         }
     }
 
