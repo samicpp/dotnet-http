@@ -46,7 +46,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
     public Http2Frame? goaway = null;
     public Hpack.Encoder hpacke = new(settings.header_table_size ?? 4096);
     public Hpack.Decoder hpackd = new(settings.header_table_size ?? 4096);
-    private readonly LinkedList<Http2Frame> que = new();
+    private readonly ConcurrentQueue<Http2Frame> que = new();
 
     public bool IsSecure { get => socket.IsSecure; }
 
@@ -130,11 +130,10 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
 
     public Http2Frame ReadOne()
     {
-        if (que.First != null)
+        if (!que.IsEmpty)
         {
-            var f = que.First!;
-            que.RemoveFirst();
-            return f.Value;
+            que.TryDequeue(out var f);
+            return f;
         }
         else
         {
@@ -143,11 +142,10 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
     }
     public async Task<Http2Frame> ReadOneAsync()
     {
-        if (que.First != null)
+        if (!que.IsEmpty)
         {
-            var f = que.First!;
-            que.RemoveFirst();
-            return f.Value;
+            que.TryDequeue(out var f);
+            return f;
         }
         else
         {
@@ -159,11 +157,10 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
     {
         List<Http2Frame> frames = [];
 
-        while (que.First != null)
+        while (!que.IsEmpty)
         {
-            var f = que.First!;
-            que.RemoveFirst();
-            frames.Add(f.Value);
+            que.TryDequeue(out var f);
+            frames.Add(f);
         }
         if (frames.Count > 0) return frames;
 
@@ -188,11 +185,10 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
     {
         List<Http2Frame> frames = [];
 
-        while (que.First != null)
+        while (!que.IsEmpty)
         {
-            var f = que.First!;
-            que.RemoveFirst();
-            frames.Add(f.Value);
+            que.TryDequeue(out var f);
+            frames.Add(f);
         }
         if (frames.Count > 0) return frames;
 
@@ -645,7 +641,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     var frame = Readone(true);
 
                     if (frame.type == Http2FrameType.WindowUpdate) Handle(frame);
-                    else que.AddLast(frame);
+                    else que.Enqueue(frame);
 
                     streamLock.Wait(); streamLocked = true;
                     status = streams[streamID];
@@ -724,7 +720,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     var frame = await ReadoneAsync(true);
 
                     if (frame.type == Http2FrameType.WindowUpdate) await HandleAsync(frame);
-                    else que.AddLast(frame);
+                    else que.Enqueue(frame);
 
                     await streamLock.WaitAsync(); streamLocked = true;
                     if (!sendLocked) { await sendLock.WaitAsync(); sendLocked = true; }
