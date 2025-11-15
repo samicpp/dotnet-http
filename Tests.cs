@@ -18,6 +18,7 @@ using Http2Connection = Samicpp.Http.Http2.Http2Session;
 using Compression = Samicpp.Http.CompressionType;
 using Samicpp.Http.Debug;
 using System.Linq;
+using Samicpp.Http.Quic;
 
 public class TcpSocket(NetworkStream stream) : ADualSocket
 {
@@ -598,10 +599,11 @@ public class Tests
         }
     }
 
+    
     [Fact]
     public async Task UdpEchoServer()
     {
-        Socket udp = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        using Socket udp = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
         EndPoint from = new IPEndPoint(IPAddress.Any, 0);
         udp.Bind(new IPEndPoint(IPAddress.Any, 1024));
         int count = 0;
@@ -616,6 +618,50 @@ public class Tests
             Console.WriteLine($"{recv.RemoteEndPoint} -> [{read}] \"{Encoding.UTF8.GetString(window, 0, read)}\"");
             await udp.SendToAsync(window[..read], recv.RemoteEndPoint);
             count++;
+        }
+    }
+
+    [Fact]
+    public async Task QuicPacketDumpServer()
+    {
+        using QuicServer quic = new();
+        quic.Listen(2048);
+        
+        for(int i = 0; i < 10; i++)
+        {
+            var (_, pack) = await quic.ReceiveAsync();
+            if (pack is QuicLongPacket packet)
+            {
+                string dump = "";
+
+                dump+=packet.GetType().FullName;
+                dump+="{\n";
+                dump+=$"    HeaderForm: {packet.HeaderForm},\n";
+                dump+=$"    Type: {packet.Type},\n";
+                dump+=$"    TypeSpecific: {packet.TypeSpecific},\n";
+                dump+=$"    Version: {packet.Version},\n";
+                dump+=$"    DciLength: {packet.DciLength},\n";
+                dump+=$"    Dci: [ "; foreach (var b in packet.Dci) dump += $"{b}, "; dump += "],\n";
+                dump+=$"    SciLength: {packet.SciLength},\n";
+                dump+=$"    Sci: [ "; foreach (var b in packet.Sci) dump += $"{b}, "; dump += "],\n";
+                dump+=$"    TsPayload: [ "; foreach (var b in packet.TsPayload) dump += $"{b}, "; dump += "],\n";
+                dump+="}";
+
+                var frames = IQuicFrame.ParseAll(packet.TsPayload);
+                string fdump = "frames = [ ";
+                foreach (var frame in frames)
+                {
+                    fdump += $"{frame.Type}, ";
+                }
+                fdump+="]\n";
+
+                Console.WriteLine(dump);
+                Console.WriteLine(fdump);
+            }
+            else if (pack is QuicShortPacket shor)
+            {
+                Console.WriteLine("short packet");
+            }
         }
     }
 }

@@ -3,6 +3,13 @@ namespace Samicpp.Http.Quic;
 // http://datatracker.ietf.org/doc/html/rfc9000
 
 
+// 17 #name-packet-formats
+public interface IQuicPacket
+{
+    public byte HeaderForm { get; }
+    public bool FixedBit { get; init; }
+}
+
 // 17.2 Table 5 #long-packet-types
 public enum QuicPacketType : byte
 {
@@ -13,7 +20,7 @@ public enum QuicPacketType : byte
 }
 
 // 17.2 #name-long-header-packets
-public readonly struct QuicLongPacket()
+public readonly struct QuicLongPacket(): IQuicPacket
 {
     public byte HeaderForm { get; } = 1;
     public bool FixedBit { get; init; } // 17.2.1 // if 0 then version negotiation packet
@@ -22,8 +29,8 @@ public readonly struct QuicLongPacket()
     public uint Version { get; init; }
     public byte DciLength { get; init; } // Destination Connection ID Length
     public byte[] Dci { get; init; } = []; // Destination Connection ID
-    public byte SciLength { get; init; } // Destination Connection ID
-    public byte[] Sci { get; init; } = []; // Destination Connection ID
+    public byte SciLength { get; init; } // Source Connection ID
+    public byte[] Sci { get; init; } = []; // Source Connection ID
     public byte[] TsPayload { get; init; } = []; // Type-Specific Payload 
 
     public static QuicLongPacket Parse(byte[] bytes)
@@ -44,6 +51,7 @@ public readonly struct QuicLongPacket()
             Type = type,
             TypeSpecific = typeSpecific,
             Version = version,
+            DciLength = dcil,
             Dci = dci,
             SciLength = scil,
             Sci = sci,
@@ -53,10 +61,10 @@ public readonly struct QuicLongPacket()
 }
 
 // 17.3.1 #name-1-rtt-packet
-public readonly struct QuicShortPacket()
+public readonly struct QuicShortPacket(): IQuicPacket
 {
     public byte HeaderForm { get; } = 0;
-    public byte FixedBit { get; } = 1;
+    public bool FixedBit { get; init; }
     public bool SpinBit { get; init; }
     public byte Reserved { get; init; }
     public bool KeyPhase { get; init; }
@@ -78,6 +86,7 @@ public readonly struct QuicShortPacket()
 
         return new()
         {
+            FixedBit = true,
             SpinBit = spin,
             Reserved = reserved,
             KeyPhase = keyphase,
