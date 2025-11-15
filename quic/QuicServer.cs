@@ -42,11 +42,11 @@ public class QuicServer(Socket socket): IDisposable
     public QuicServer(AddressFamily addressFamily): this(new Socket(addressFamily, SocketType.Dgram, ProtocolType.Udp)){}
     public QuicServer(AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType): this(new Socket(addressFamily, socketType, protocolType)){}
 
-    public void Listen(EndPoint endPoint) => udp.Bind(endPoint);
-    public void Listen() => udp.Bind(new IPEndPoint(IPAddress.Any, 0));
-    public void Listen(ushort port) => udp.Bind(new IPEndPoint(IPAddress.Any, port));
-    public void Listen(string address) => udp.Bind(IPEndPoint.Parse(address));
-    public void Listen(string ipAddress, ushort port) => udp.Bind(new IPEndPoint(IPAddress.Parse(ipAddress), port));
+    public void Bind(EndPoint endPoint) => udp.Bind(endPoint);
+    public void Bind() => udp.Bind(new IPEndPoint(IPAddress.Any, 0));
+    public void Bind(ushort port) => udp.Bind(new IPEndPoint(IPAddress.Any, port));
+    public void Bind(string address) => udp.Bind(IPEndPoint.Parse(address));
+    public void Bind(string ipAddress, ushort port) => udp.Bind(new IPEndPoint(IPAddress.Parse(ipAddress), port));
 
 
     public (EndPoint,byte[]) ReceiveDgram()
