@@ -625,7 +625,7 @@ public class Tests
     public async Task QuicPacketDumpServer()
     {
         using QuicServer quic = new();
-        quic.Listen(2048);
+        quic.Bind(2048);
         
         for(int i = 0; i < 10; i++)
         {
