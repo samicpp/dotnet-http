@@ -58,6 +58,28 @@ public readonly struct QuicLongPacket(): IQuicPacket
             TsPayload = payload,
         };
     }
+    public static byte[] Create(bool fixedBit, QuicPacketType type, byte typeSpecific, uint version, byte[] dci, byte[] sci, byte[] tsPayload)
+    {
+        byte[] packet = new byte[tsPayload.Length + sci.Length + dci.Length + 7];
+        int pos = 0;
+
+        packet[pos] |= 0b1000_0000;
+        packet[pos] |= fixedBit ? (byte)0b0100_0000 : (byte)0;
+        packet[pos] |= (byte)((int)type << 4);
+        packet[pos] |= (byte)(typeSpecific & 0b1111);
+        pos +=1 ;
+        packet[pos++] = (byte)(version >> 24);
+        packet[pos++] = (byte)(version >> 16);
+        packet[pos++] = (byte)(version >> 8);
+        packet[pos++] = (byte)version;
+        packet[pos++] = (byte)dci.Length;
+        foreach (var b in dci) packet[pos++] = b;
+        packet[pos++] = (byte)sci.Length;
+        foreach (var b in sci) packet[pos++] = b;
+        foreach (var b in tsPayload) packet[pos++] = b;
+
+        return packet;
+    }
 }
 
 // 17.3.1 #name-1-rtt-packet
@@ -78,7 +100,7 @@ public readonly struct QuicShortPacket(): IQuicPacket
         bool spin = (bytes[0] & 0b0010_0000) != 0;
         byte reserved = (byte)((bytes[0] & 0b0001_1000) >> 3);
         bool keyphase = (bytes[0] & 0b0000_0100) != 0;
-        int pnLength = bytes[0] & 0b0000_0011 + 1;
+        int pnLength = (bytes[0] & 0b0000_0011) + 1;
         byte[] dci = bytes[1..(DciLength + 1)];
         uint pn = 0;
         for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[i + DciLength + 1] << (8 * (pnLength - 1 - i));
@@ -95,6 +117,35 @@ public readonly struct QuicShortPacket(): IQuicPacket
             PacketNumber = pn,
             PacketPayload = payload,
         };
+    }
+
+    public static byte[] Create(bool spin, byte reserved, bool keyphase, uint packetNumber, byte[] dci, byte[] payload)
+    {
+        byte[] pn;
+        
+        var pn0 = (byte)(packetNumber >> 24);
+        var pn1 = (byte)(packetNumber >> 16);
+        var pn2 = (byte)(packetNumber >> 8);
+        var pn3 = (byte)packetNumber;
+
+        if (pn0 != 0) pn = [pn0, pn1, pn2, pn3];
+        else if (pn1 != 0) pn = [pn1, pn2, pn3];
+        else if (pn2 != 0) pn = [pn2, pn3];
+        else pn = [pn3];
+
+        byte[] packet = new byte[payload.Length + dci.Length + pn.Length + 1];
+        int pos = 0;
+
+        packet[pos] |= spin ? (byte)0b0010_0000 : (byte)0;
+        packet[pos] |= (byte)((reserved & 0b11) << 3);
+        packet[pos] |= keyphase ? (byte)0b0000_0100 : (byte)0;
+        packet[pos] |= (byte)(pn.Length - 1);
+        pos += 1;
+        foreach (var b in dci) packet[pos++] = b;
+        foreach (var b in pn) packet[pos++] = b;
+        foreach (var b in payload) packet[pos++] = b;
+
+        return packet;
     }
 }
 
