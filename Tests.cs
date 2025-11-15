@@ -598,4 +598,24 @@ public class Tests
         }
     }
 
+    [Fact]
+    public async Task UdpEchoServer()
+    {
+        Socket udp = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        EndPoint from = new IPEndPoint(IPAddress.Any, 0);
+        udp.Bind(new IPEndPoint(IPAddress.Any, 1024));
+        int count = 0;
+
+        byte[] window = new byte[2048];
+        while (true)
+        {
+            if (count > 10) break;
+            var recv = await udp.ReceiveFromAsync(window, from);
+            int read = recv.ReceivedBytes;
+
+            Console.WriteLine($"{recv.RemoteEndPoint} -> [{read}] \"{Encoding.UTF8.GetString(window, 0, read)}\"");
+            await udp.SendToAsync(window[..read], recv.RemoteEndPoint);
+            count++;
+        }
+    }
 }
