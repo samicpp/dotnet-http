@@ -12,7 +12,7 @@ H2C and WebSocket upgrades can in the library. <br/> <br/>
 
 In the future I might make another library that uses this one to support a ready to use Web framework with middleware and more.
 
-## TODO / Features
+## TODO::Features
 - [x] allow both sync and async code
 - [x] implement HTTP/0.9 (utterly useless, for educational purposes only)
 - [x] implement HTTP/1.1
@@ -22,6 +22,8 @@ In the future I might make another library that uses this one to support a ready
 - [ ] implement QUIC
 - [ ] implement QPACK
 - [ ] implement HTTP/3
+
+## TODO::Improvements
 - [x] improve compressor
 - [ ] support use of `Stream` instead of `byte[]`
 - [x] support trailing headers
