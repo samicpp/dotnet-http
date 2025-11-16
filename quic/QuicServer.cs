@@ -61,29 +61,15 @@ public class QuicServer(Socket socket): IDisposable
         return (dgram.RemoteEndPoint, [.. window[..dgram.ReceivedBytes]]);
     }
 
-    public (EndPoint,IQuicPacket) Receive()
+    public (EndPoint,List<IQuicPacket>) Receive()
     {
         var (from, bytes) = ReceiveDgram();
-        if ((bytes[0] & 128) != 0)
-        {
-            return (from, IQuicLongPacket.Parse(bytes));
-        }
-        else
-        {
-            return (from, QuicShortPacket.Parse(ScidLength,bytes));
-        }
+        return (from, IQuicPacket.ParseAll(ScidLength, bytes));
     }
-    public async Task<(EndPoint,IQuicPacket)> ReceiveAsync()
+    public async Task<(EndPoint,List<IQuicPacket>)> ReceiveAsync()
     {
         var (from, bytes) = await ReceiveDgramAsync();
-        if ((bytes[0] & 128) != 0)
-        {
-            return (from, IQuicLongPacket.Parse(bytes));
-        }
-        else
-        {
-            return (from, QuicShortPacket.Parse(ScidLength,bytes));
-        }
+        return (from, IQuicPacket.ParseAll(ScidLength, bytes));
     }
 
 

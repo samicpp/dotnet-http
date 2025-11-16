@@ -629,39 +629,42 @@ public class Tests
         
         for(int i = 0; i < 10; i++)
         {
-            var (_, pack) = await quic.ReceiveAsync();
-            if (pack is IQuicLongPacket packet)
+            var (_, packs) = await quic.ReceiveAsync();
+            foreach (var pack in packs)
             {
-                string dump = "";
+                if (pack is IQuicLongPacket packet)
+                {
+                    string dump = "";
 
-                dump+=packet.GetType().FullName;
-                dump+="{\n";
-                dump+=$"    HeaderForm: {packet.HeaderForm},\n";
-                dump+=$"    Type: {packet.Type},\n";
-                dump+=$"    TypeSpecific: {packet.TypeSpecific},\n";
-                dump+=$"    Version: {packet.Version},\n";
-                dump+=$"    DciLength: {packet.DciLength},\n";
-                dump+=$"    Dci: [ "; foreach (var b in packet.Dci) dump += $"{b}, "; dump += "],\n";
-                dump+=$"    SciLength: {packet.SciLength},\n";
-                dump+=$"    Sci: [ "; foreach (var b in packet.Sci) dump += $"{b}, "; dump += "],\n";
-                // dump+=$"    TsPayload: [ "; foreach (var b in packet.TsPayload) dump += $"{b}, "; dump += "],\n";
-                dump+="}";
+                    dump+=packet.GetType().FullName;
+                    dump+="{\n";
+                    dump+=$"    HeaderForm: {packet.HeaderForm},\n";
+                    dump+=$"    Type: {packet.Type},\n";
+                    dump+=$"    TypeSpecific: {packet.TypeSpecific},\n";
+                    dump+=$"    Version: {packet.Version},\n";
+                    dump+=$"    DciLength: {packet.DciLength},\n";
+                    dump+=$"    Dci: [ "; foreach (var b in packet.Dci) dump += $"{b}, "; dump += "],\n";
+                    dump+=$"    SciLength: {packet.SciLength},\n";
+                    dump+=$"    Sci: [ "; foreach (var b in packet.Sci) dump += $"{b}, "; dump += "],\n";
+                    // dump+=$"    TsPayload: [ "; foreach (var b in packet.TsPayload) dump += $"{b}, "; dump += "],\n";
+                    dump+="}";
 
-                Console.WriteLine(dump);
+                    Console.WriteLine(dump);
 
-                // var frames = IQuicFrame.ParseAll(packet.TsPayload);
-                // string fdump = "frames = [ ";
-                // foreach (var frame in frames)
-                // {
-                //     fdump += $"{frame.Type}, ";
-                // }
-                // fdump+="]\n";
+                    // var frames = IQuicFrame.ParseAll(packet.TsPayload);
+                    // string fdump = "frames = [ ";
+                    // foreach (var frame in frames)
+                    // {
+                    //     fdump += $"{frame.Type}, ";
+                    // }
+                    // fdump+="]\n";
 
-                // Console.WriteLine(fdump);
-            }
-            else if (pack is QuicShortPacket shor)
-            {
-                Console.WriteLine("short packet");
+                    // Console.WriteLine(fdump);
+                }
+                else if (pack is QuicShortPacket shor)
+                {
+                    Console.WriteLine("short packet");
+                }
             }
         }
     }
