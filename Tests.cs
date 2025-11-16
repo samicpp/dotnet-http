@@ -630,7 +630,7 @@ public class Tests
         for(int i = 0; i < 10; i++)
         {
             var (_, pack) = await quic.ReceiveAsync();
-            if (pack is QuicLongPacket packet)
+            if (pack is IQuicLongPacket packet)
             {
                 string dump = "";
 
@@ -644,19 +644,20 @@ public class Tests
                 dump+=$"    Dci: [ "; foreach (var b in packet.Dci) dump += $"{b}, "; dump += "],\n";
                 dump+=$"    SciLength: {packet.SciLength},\n";
                 dump+=$"    Sci: [ "; foreach (var b in packet.Sci) dump += $"{b}, "; dump += "],\n";
-                dump+=$"    TsPayload: [ "; foreach (var b in packet.TsPayload) dump += $"{b}, "; dump += "],\n";
+                // dump+=$"    TsPayload: [ "; foreach (var b in packet.TsPayload) dump += $"{b}, "; dump += "],\n";
                 dump+="}";
 
-                var frames = IQuicFrame.ParseAll(packet.TsPayload);
-                string fdump = "frames = [ ";
-                foreach (var frame in frames)
-                {
-                    fdump += $"{frame.Type}, ";
-                }
-                fdump+="]\n";
-
                 Console.WriteLine(dump);
-                Console.WriteLine(fdump);
+
+                // var frames = IQuicFrame.ParseAll(packet.TsPayload);
+                // string fdump = "frames = [ ";
+                // foreach (var frame in frames)
+                // {
+                //     fdump += $"{frame.Type}, ";
+                // }
+                // fdump+="]\n";
+
+                // Console.WriteLine(fdump);
             }
             else if (pack is QuicShortPacket shor)
             {

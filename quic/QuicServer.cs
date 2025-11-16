@@ -66,7 +66,7 @@ public class QuicServer(Socket socket): IDisposable
         var (from, bytes) = ReceiveDgram();
         if ((bytes[0] & 128) != 0)
         {
-            return (from, QuicLongPacket.Parse(bytes));
+            return (from, IQuicLongPacket.Parse(bytes));
         }
         else
         {
@@ -78,7 +78,7 @@ public class QuicServer(Socket socket): IDisposable
         var (from, bytes) = await ReceiveDgramAsync();
         if ((bytes[0] & 128) != 0)
         {
-            return (from, QuicLongPacket.Parse(bytes));
+            return (from, IQuicLongPacket.Parse(bytes));
         }
         else
         {
