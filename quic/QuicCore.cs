@@ -14,7 +14,7 @@ public interface IQuicPacket
         int pos = 0;
         List<IQuicPacket> packets = [];
 
-        while(pos < bytes.Length)
+        while (pos < bytes.Length)
         {
             if ((bytes[pos] & 128) != 0)
             {
@@ -61,44 +61,7 @@ public interface IQuicLongPacket: IQuicPacket
     public byte[] Dci { get; } // Destination Connection ID
     public byte SciLength { get; } // Source Connection ID
     public byte[] Sci { get; } // Source Connection ID
-    // public byte[] TsPayload { get; init; } = []; // Type-Specific Payload 
-
-    /*public static QuicLongPacket Parse(byte[] bytes)
-    {
-        bool fixedBit = (bytes[0] & 0b0100_0000) != 0;
-        QuicPacketType type = (QuicPacketType)((bytes[0] & 0b0011_0000) >> 4);
-        byte typeSpecific = (byte)(bytes[0] & 0b1111);
-        uint version = (uint)bytes[1] << 24 | (uint)bytes[2] << 16 | (uint)bytes[3] << 8 | bytes[4];
-        byte dcil = bytes[5];
-        byte[] dci = bytes[6..(dcil + 6)];
-        byte scil = bytes[dcil + 6];
-        byte[] sci = bytes[(dcil + 7)..(scil + dcil + 7)];
-        byte[] payload = bytes[(scil + dcil + 7)..];
-
-        return new()
-        {
-            FixedBit = fixedBit,
-            Type = type,
-            TypeSpecific = typeSpecific,
-            Version = version,
-            DciLength = dcil,
-            Dci = dci,
-            SciLength = scil,
-            Sci = sci,
-            TsPayload = payload,
-        };
-    }*/
-    // public static IQuicLongPacket Parse(ref int position, byte[] bytes)
-    // {
-    //     bool fixedBit = (bytes[0] & 0b0100_0000) != 0;
-    //     QuicPacketType type = (QuicPacketType)((bytes[0] & 0b0011_0000) >> 4);
-        
-    //     if (!fixedBit) return QuicVersionPacket.Parse(ref position, bytes);
-    //     else if (type == QuicPacketType.Initial) return QuicInitialPacket.Parse(ref position, bytes);
-    //     else if (type == QuicPacketType.ZeroRtt) return QuicZeroRttPacket.Parse(ref position, bytes);
-    //     else if (type == QuicPacketType.Handshake) return QuicHandshakePacket.Parse(ref position, bytes);
-    //     else /*if (type == QuicPacketType.Retry)*/ return QuicRetryPacket.Parse(ref position, bytes);
-    // }
+    
     public static byte[] Create(bool fixedBit, QuicPacketType type, byte typeSpecific, uint version, byte[] dci, byte[] sci, byte[] tsPayload)
     {
         byte[] packet = new byte[tsPayload.Length + sci.Length + dci.Length + 7];
@@ -160,6 +123,10 @@ public readonly struct QuicVersionPacket() : IQuicLongPacket
             SupportedVersion = version,
         };
     }
+    public static byte[] Create(uint version, byte[] dci, byte[] sci)
+    {
+        return [0b1000_0000, 0, 0, 0, 0, (byte)dci.Length, .. dci, (byte)sci.Length, .. sci, (byte)(version >> 24), (byte)(version >> 16), (byte)(version >> 8), (byte)version];
+    }
 }
 
 // 17.2.2 #name-initial-packet
@@ -220,6 +187,22 @@ public readonly struct QuicInitialPacket() : IQuicLongPacket
             Payload = payload,
         };
     }
+    public static byte[] Create(uint version, byte[] dci, byte[] sci, byte[] token, uint packetNumber, byte[] payload)
+    {
+        byte[] pn;
+        if(packetNumber <= 0xff) pn = [(byte)packetNumber];
+        else if(packetNumber <= 0xff_ff) pn = [(byte)(packetNumber >> 8), (byte)packetNumber];
+        else if(packetNumber <= 0xff_ff_ff) pn = [(byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
+        else pn = [(byte)(packetNumber >> 24), (byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
+
+        return [
+            (byte)(0b1100_0000 | (pn.Length - 1)), 
+            (byte)(version >> 24), (byte)(version >> 16), (byte)(version >> 8), (byte)version, 
+            (byte)dci.Length, .. dci, (byte)sci.Length, .. sci, 
+            .. IQuicFrame.EncodeVarint((ulong)token.Length), .. token, 
+            .. IQuicFrame.EncodeVarint((ulong)(payload.Length + pn.Length)), .. pn, .. payload,
+        ];
+    }
 }
 
 // 17.2.3 #name-0-rtt
@@ -274,6 +257,21 @@ public readonly struct QuicZeroRttPacket() : IQuicLongPacket
             Payload = payload,
         };
     }
+    public static byte[] Create(uint version, byte[] dci, byte[] sci, uint packetNumber, byte[] payload)
+    {
+        byte[] pn;
+        if(packetNumber <= 0xff) pn = [(byte)packetNumber];
+        else if(packetNumber <= 0xff_ff) pn = [(byte)(packetNumber >> 8), (byte)packetNumber];
+        else if(packetNumber <= 0xff_ff_ff) pn = [(byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
+        else pn = [(byte)(packetNumber >> 24), (byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
+
+        return [
+            (byte)(0b1101_0000 | (pn.Length - 1)), 
+            (byte)(version >> 24), (byte)(version >> 16), (byte)(version >> 8), (byte)version, 
+            (byte)dci.Length, .. dci, (byte)sci.Length, .. sci,
+            .. IQuicFrame.EncodeVarint((ulong)(payload.Length + pn.Length)), .. pn, .. payload,
+        ];
+    }
 }
 
 // 17.2.4 #name-handshake-packet
@@ -326,6 +324,15 @@ public readonly struct QuicHandshakePacket() : IQuicLongPacket
             PacketNumber = pn,
             Payload = payload,
         };
+    }
+    public static byte[] Create(uint version, byte[] dci, byte[] sci, byte[] retryToken, byte[] retryIntegrityTag)
+    {
+        return [
+            0b1111_0000, 
+            (byte)(version >> 24), (byte)(version >> 16), (byte)(version >> 8), (byte)version, 
+            (byte)dci.Length, .. dci, (byte)sci.Length, .. sci,
+            .. retryToken, .. retryIntegrityTag,
+        ];
     }
 }
 
@@ -418,7 +425,7 @@ public readonly struct QuicShortPacket(): IQuicPacket
     public static byte[] Create(bool spin, byte reserved, bool keyphase, uint packetNumber, byte[] dci, byte[] payload)
     {
         byte[] pn;
-        
+
         var pn0 = (byte)(packetNumber >> 24);
         var pn1 = (byte)(packetNumber >> 16);
         var pn2 = (byte)(packetNumber >> 8);
