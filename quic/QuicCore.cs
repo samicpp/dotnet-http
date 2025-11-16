@@ -118,7 +118,6 @@ public readonly struct QuicShortPacket(): IQuicPacket
             PacketPayload = payload,
         };
     }
-
     public static byte[] Create(bool spin, byte reserved, bool keyphase, uint packetNumber, byte[] dci, byte[] payload)
     {
         byte[] pn;
@@ -293,6 +292,10 @@ public readonly struct QuicPadding() : IQuicFrame // 0x00 -> 0
     {
         return new();
     }
+    public static byte[] Create()
+    {
+        return [0];
+    }
 }
 
 // 19.2 #name-ping-frames
@@ -303,6 +306,10 @@ public readonly struct QuicPing() : IQuicFrame // 0x01 -> 1
     public static QuicPing Parse(ref int offset, byte[] bytes)
     {
         return new();
+    }
+    public static byte[] Create()
+    {
+        return [1];
     }
 }
 
@@ -357,11 +364,32 @@ public readonly struct QuicAck(bool ecn) : IQuicFrame // 0x02 - 0x03 -> 2 - 3
             Delay = delay,
             RangeCount = rangeCount,
             FirstRange = firstRange,
+            Ranges = ranges,
 
             Ect0 = ect0,
             Ect1 = ect1,
             EctCe = ectce,
         };
+    }
+    public static byte[] Create(long largest, long delay, long firstRange, QuicAckRange[] ranges, long? ect0 = null, long? ect1 = null, long? ectce = null)
+    {
+        byte[] lar = IQuicFrame.EncodeVarint((ulong)largest);
+        byte[] dly = IQuicFrame.EncodeVarint((ulong)delay);
+        byte[] count = IQuicFrame.EncodeVarint((ulong)ranges.Length);
+        byte[] first = IQuicFrame.EncodeVarint((ulong)firstRange);
+        List<byte> rang = [];
+        foreach (var r in ranges) rang.AddRange(r.ToBytes());
+
+        if (ect0 is long && ect1 is long && ectce is long)
+        {
+            byte[] e0 = IQuicFrame.EncodeVarint((ulong)ect0);
+            byte[] e1 = IQuicFrame.EncodeVarint((ulong)ect1);
+            byte[] ec = IQuicFrame.EncodeVarint((ulong)ectce);
+            
+            return [0x03, .. lar, .. dly, .. count, .. first, .. rang, .. e0, .. e1, .. ec ];
+        }
+
+        return [0x02, .. lar, .. dly, .. count, .. first, .. rang ];
     }
 }
 // 19.3.1 #section-19.3.1
@@ -369,6 +397,14 @@ public readonly struct QuicAckRange()
 {
     public long Gap { get; init; } // varint
     public long RangeLength { get; init; } // varint
+    
+    public static byte[] Create(long gap, long rangeLength)
+    {
+        byte[] v0 = IQuicFrame.EncodeVarint((ulong)gap);
+        byte[] v1 = IQuicFrame.EncodeVarint((ulong)rangeLength);
+        return [.. v0, .. v1];
+    }
+    public byte[] ToBytes() => Create(Gap, RangeLength);
 }
 
 // 19.4 #name-reset_stream-frames
@@ -392,6 +428,13 @@ public readonly struct QuicResetStream() : IQuicFrame // 0x04 -> 4
             FinalSize = size,
         };
     }
+    public static byte[] Create(long streamId, long errorCode, long finalSize)
+    {
+        byte[] a = IQuicFrame.EncodeVarint((ulong)streamId);
+        byte[] b = IQuicFrame.EncodeVarint((ulong)errorCode);
+        byte[] c = IQuicFrame.EncodeVarint((ulong)finalSize);
+        return [0x04, .. a, .. b, .. c];
+    }
 }
 
 // 19.5 #name-stop_sending-frames
@@ -411,6 +454,12 @@ public readonly struct QuicStopSending() : IQuicFrame // 0x05 -> 5
             StreamId = streamid,
             ErrorCode = error,
         };
+    }
+    public static byte[] Create(long streamId, long errorCode)
+    {
+        byte[] a = IQuicFrame.EncodeVarint((ulong)streamId);
+        byte[] b = IQuicFrame.EncodeVarint((ulong)errorCode);
+        return [0x05, .. a, .. b];
     }
 }
 
@@ -437,6 +486,12 @@ public readonly struct QuicCrypto() : IQuicFrame // 0x06 -> 6
             Data = data,
         };
     }
+    public static byte[] Create(long offset, byte[] data)
+    {
+        byte[] a = IQuicFrame.EncodeVarint((ulong)offset);
+        byte[] b = IQuicFrame.EncodeVarint((ulong)data.Length);
+        return [0x06, .. a, .. b, .. data];
+    }
 }
 
 // 19.7 #name-new_token-frames
@@ -458,6 +513,11 @@ public readonly struct QuicNewToken() : IQuicFrame // 0x07 -> 7
             Length = length,
             Token = data,
         };
+    }
+    public static byte[] Create(byte[] token)
+    {
+        byte[] a = IQuicFrame.EncodeVarint((ulong)token.Length);
+        return [0x07, .. a, .. token];
     }
 }
 
@@ -496,6 +556,29 @@ public readonly struct QuicStreamFrame() : IQuicFrame // 0x08 - 0x0f -> 8 - 15
             Length = length,
         };
     }
+    public static byte[] Create(long streamId, bool fin = false, long? offset = null, byte[]? data = null)
+    {
+        byte type = 0x08;
+        byte[] a = IQuicFrame.EncodeVarint((ulong)streamId);
+        byte[] off = [];
+        byte[] length = [];
+        byte[] dt = [];
+
+        if (fin) type |= 0b001;
+        if (offset is long) 
+        {
+            off = IQuicFrame.EncodeVarint((ulong)offset);
+            type |= 0b100;
+        }
+        if (data != null)
+        {
+            length = IQuicFrame.EncodeVarint((ulong)data.Length);
+            type |= 0b010;
+            dt = data;
+        }
+
+        return [type, .. a, .. off, .. length, .. dt];
+    }
 }
 
 // 19.9 #name-max_data-frames
@@ -512,6 +595,10 @@ public readonly struct QuicMaxData() : IQuicFrame // 0x10 -> 16
         {
             Maximum = max,
         };
+    }
+    public static byte[] Create(long maximum)
+    {
+        return [0x10, .. IQuicFrame.EncodeVarint((ulong)maximum)];
     }
 }
 
@@ -533,6 +620,10 @@ public readonly struct QuicMaxStreamData() : IQuicFrame // 0x11 -> 17
             Maximum = max,
         };
     }
+    public static byte[] Create(long streamId, long maximum)
+    {
+        return [0x11, .. IQuicFrame.EncodeVarint((ulong)streamId), .. IQuicFrame.EncodeVarint((ulong)maximum)];
+    }
 }
 
 // 19.11 #name-max_streams-frames
@@ -550,6 +641,10 @@ public readonly struct QuicMaxStreams(bool bidi) : IQuicFrame // 0x12 - 0x13 -> 
             Maximum = max,
         };
     }
+    public static byte[] Create(bool bidi, long maximum)
+    {
+        return [bidi ? (byte)0x12 : (byte)0x13, .. IQuicFrame.EncodeVarint((ulong)maximum)];
+    }
 }
 
 // 19.12 #name-data_blocked-frames
@@ -566,6 +661,10 @@ public readonly struct QuicDataBlocked() : IQuicFrame // 0x14 -> 20
         {
             Maximum = max,
         };
+    }
+    public static byte[] Create(long maximum)
+    {
+        return [0x14, .. IQuicFrame.EncodeVarint((ulong)maximum)];
     }
 }
 
@@ -587,6 +686,10 @@ public readonly struct QuicStreamDataBlocked() : IQuicFrame // 0x15 -> 21
             Maximum = max,
         };
     }
+    public static byte[] Create(long streamId, long maximum)
+    {
+        return [0x15, .. IQuicFrame.EncodeVarint((ulong)streamId), .. IQuicFrame.EncodeVarint((ulong)maximum)];
+    }
 }
 
 // 19.14 #name-streams_blocked-frames
@@ -603,6 +706,10 @@ public readonly struct QuicStreamBlocked(bool bidi) : IQuicFrame // 0x16 - 0x17 
         {
             Maximum = max,
         };
+    }
+    public static byte[] Create(bool bidi, long maximum)
+    {
+        return [bidi ? (byte)0x16 : (byte)0x17, .. IQuicFrame.EncodeVarint((ulong)maximum)];
     }
 }
 
@@ -635,6 +742,13 @@ public readonly struct QuicNewConnectionId() : IQuicFrame // 0x18 -> 24
             StatelessResetToken = rst,
         };
     }
+    public static byte[] Create(long sequenceNumber, long retirePriorTo, byte[] connectionId, byte[] statelessResetToken)
+    {
+        byte[] seq = IQuicFrame.EncodeVarint((ulong)sequenceNumber);
+        byte[] ret = IQuicFrame.EncodeVarint((ulong)retirePriorTo);
+        if(statelessResetToken.Length != 16) throw new Exception("Stateless Reset Token Length was out of bounds");
+        return [0x18, .. seq, .. ret, (byte)connectionId.Length, .. connectionId, .. statelessResetToken];
+    }
 }
 
 // 19.16 #name-retire_connection_id-frames
@@ -651,6 +765,10 @@ public readonly struct QuicRetireConnectionId() : IQuicFrame // 0x19 -> 25
         {
             SequenceNumber = sequence,
         };
+    }
+    public static byte[] Create(long sequenceNumber)
+    {
+        return [0x19, .. IQuicFrame.EncodeVarint((ulong)sequenceNumber)];
     }
 }
 
@@ -670,6 +788,12 @@ public readonly struct QuicPathChallenge() : IQuicFrame // 0x1a -> 26
             Data = data,
         };
     }
+
+    public static byte[] Create(byte[] data)
+    {
+        if(data.Length != 4) throw new Exception("Path Challenge Data Length was out of bounds");
+        return [0x1a, .. data];
+    }
 }
 
 // 19.18 #name-path_response-frames
@@ -687,6 +811,11 @@ public readonly struct QuicPathResponse() : IQuicFrame // 0x1b -> 27
         {
             Data = data,
         };
+    }
+    public static byte[] Create(byte[] data)
+    {
+        if(data.Length != 4) throw new Exception("Path Response Data Length was out of bounds");
+        return [0x1b, .. data];
     }
 }
 
@@ -715,6 +844,13 @@ public readonly struct QuicConnectionClose(bool app) : IQuicFrame // 0x1c - 0x1d
             ReasonPhrase = reason,
         };
     }
+    public static byte[] Create(bool app, long errorCode, long frameType, byte[] reasonPhrase)
+    {
+        byte[] code = IQuicFrame.EncodeVarint((ulong)errorCode);
+        byte[] type = IQuicFrame.EncodeVarint((ulong)frameType);
+        byte[] reason = IQuicFrame.EncodeVarint((ulong)reasonPhrase.Length);
+        return [!app ? (byte)0x1c : (byte)0x1d, .. code, .. type, .. reason, .. reasonPhrase];
+    }
 }
 
 // 19.20 #name-handshake_done-frames
@@ -725,5 +861,9 @@ public readonly struct QuicHandshakeDone() : IQuicFrame // 0x1e -> 30
     public static QuicHandshakeDone Parse(ref int offset, byte[] bytes)
     {
         return new();
+    }
+    public static byte[] Create()
+    {
+        return [0x1e];
     }
 }
