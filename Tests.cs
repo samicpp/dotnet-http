@@ -647,18 +647,49 @@ public class Tests
                     dump+=$"    SciLength: {packet.SciLength},\n";
                     dump+=$"    Sci: [ "; foreach (var b in packet.Sci) dump += $"{b}, "; dump += "],\n";
                     // dump+=$"    TsPayload: [ "; foreach (var b in packet.TsPayload) dump += $"{b}, "; dump += "],\n";
+                    if (packet is QuicVersionPacket v) dump += $"    SupportedVersion: {v.SupportedVersion}\n";
+                    else if (packet is QuicInitialPacket s)
+                    {
+                        dump += $"    TokenLength: {s.TokenLength}\n";
+                        dump += $"    Token: [ "; foreach (var b in s.Token) dump += $"{b}, "; dump += "],\n";
+                        dump += $"    Length: {s.Length}\n";
+                        dump += $"    PacketNumber: {s.PacketNumber}\n";
+                        dump += $"    Payload: [ "; foreach (var b in s.Payload) dump += $"{b}, "; dump += "],\n";
+                    }
+                    else if (packet is QuicZeroRttPacket z)
+                    {
+                        dump += $"    Length: {z.Length}\n";
+                        dump += $"    PacketNumber: {z.PacketNumber}\n";
+                        dump += $"    Payload: [ "; foreach (var b in z.Payload) dump += $"{b}, "; dump += "],\n";
+                    }
+                    else if (packet is QuicHandshakePacket h)
+                    {
+                        dump += $"    Length: {h.Length}\n";
+                        dump += $"    PacketNumber: {h.PacketNumber}\n";
+                        dump += $"    Payload: [ "; foreach (var b in h.Payload) dump += $"{b}, "; dump += "],\n";
+                    }
+                    else if (packet is QuicRetryPacket r)
+                    {
+                        dump += $"    RetryToken: [ "; foreach (var b in r.RetryToken) dump += $"{b}, "; dump += "],\n";
+                        dump += $"    RetryIntegrityTag: [ "; foreach (var b in r.RetryIntegrityTag) dump += $"{b}, "; dump += "],\n";
+                    }
                     dump+="}";
 
                     Console.WriteLine(dump);
-
-                    // var frames = IQuicFrame.ParseAll(packet.TsPayload);
+                    
+                    // List<IQuicFrame> frames = [];
                     // string fdump = "frames = [ ";
+                    
+                    // if (packet is QuicInitialPacket ss) frames = IQuicFrame.ParseAll(ss.Payload);
+                    // if (packet is QuicZeroRttPacket zz) frames = IQuicFrame.ParseAll(zz.Payload);
+                    // if (packet is QuicHandshakePacket hh) frames = IQuicFrame.ParseAll(hh.Payload);
+
                     // foreach (var frame in frames)
                     // {
                     //     fdump += $"{frame.Type}, ";
                     // }
-                    // fdump+="]\n";
 
+                    // fdump+="]\n";
                     // Console.WriteLine(fdump);
                 }
                 else if (pack is QuicShortPacket shor)
