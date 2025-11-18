@@ -653,18 +653,21 @@ public class Tests
                         dump += $"    TokenLength: {s.TokenLength}\n";
                         dump += $"    Token: [ "; foreach (var b in s.Token) dump += $"{b}, "; dump += "],\n";
                         dump += $"    Length: {s.Length}\n";
+                        dump += $"    PacketNumberLength: {s.PacketNumberLength}\n";
                         dump += $"    PacketNumber: {s.PacketNumber}\n";
                         dump += $"    Payload: [ "; foreach (var b in s.Payload) dump += $"{b}, "; dump += "],\n";
                     }
                     else if (packet is QuicZeroRttPacket z)
                     {
                         dump += $"    Length: {z.Length}\n";
+                        dump += $"    PacketNumberLength: {z.PacketNumberLength}\n";
                         dump += $"    PacketNumber: {z.PacketNumber}\n";
                         dump += $"    Payload: [ "; foreach (var b in z.Payload) dump += $"{b}, "; dump += "],\n";
                     }
                     else if (packet is QuicHandshakePacket h)
                     {
                         dump += $"    Length: {h.Length}\n";
+                        dump += $"    PacketNumberLength: {h.PacketNumberLength}\n";
                         dump += $"    PacketNumber: {h.PacketNumber}\n";
                         dump += $"    Payload: [ "; foreach (var b in h.Payload) dump += $"{b}, "; dump += "],\n";
                     }
