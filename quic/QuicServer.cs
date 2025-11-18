@@ -4,6 +4,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
+// handles read loop etc., to ensure proper connection management
+// will also support rfc 9221 https://datatracker.ietf.org/doc/html/rfc9221
 public class QuicServer(Socket socket): IDisposable
 {
     readonly Socket udp = socket;
