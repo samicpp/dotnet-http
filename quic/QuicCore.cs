@@ -1,6 +1,7 @@
 namespace Samicpp.Http.Quic;
 
 // http://datatracker.ietf.org/doc/html/rfc9000
+// http://datatracker.ietf.org/doc/html/rfc9221
 
 
 // 17 #name-packet-formats
@@ -521,9 +522,9 @@ public interface IQuicFrame
         byte[] varint;
 
         if (number < 0b0011_1111) varint = [(byte)number];
-        else if (number < 0b0011_1111_1111_1111) varint = [(byte)((number >> 8) | 0b0100_000), (byte)number];
-        else if (number < 0b0011_1111_1111_1111_1111_1111_1111_1111) varint = [(byte)((number >> 24) | 0b1000_000), (byte)(number >> 16), (byte)(number >> 8), (byte)number];
-        else varint = [(byte)((number >> 56) | 0b1100_000), (byte)(number >> 48), (byte)(number >> 40), (byte)(number >> 32), (byte)(number >> 24), (byte)(number >> 16), (byte)(number >> 8), (byte)number];
+        else if (number < 0b0011_1111_1111_1111) varint = [(byte)((number >> 8) | 0b0100_0000), (byte)number];
+        else if (number < 0b0011_1111_1111_1111_1111_1111_1111_1111) varint = [(byte)((number >> 24) | 0b1000_0000), (byte)(number >> 16), (byte)(number >> 8), (byte)number];
+        else varint = [(byte)((number >> 56) | 0b1100_0000), (byte)(number >> 48), (byte)(number >> 40), (byte)(number >> 32), (byte)(number >> 24), (byte)(number >> 16), (byte)(number >> 8), (byte)number];
 
         return varint;
     }
