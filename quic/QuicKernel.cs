@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 // handles read loop etc., to ensure proper connection management
 // will also support rfc 9221 https://datatracker.ietf.org/doc/html/rfc9221
-public class QuicServer(Socket socket, X509Certificate2 cert): IDisposable
+public class QuicKernel(Socket socket, X509Certificate2 cert): IDisposable
 {
     readonly Socket udp = socket;
     readonly byte[] window = new byte[65565];
@@ -43,20 +43,11 @@ public class QuicServer(Socket socket, X509Certificate2 cert): IDisposable
         return rand;
     }
 
-    public QuicServer(QuicServerConfig config): this(new Socket(config.AddressFamily, config.SocketType, config.ProtocolType), config.Certificate)
+    public QuicKernel(QuicConfig config): this(new Socket(config.AddressFamily, config.SocketType, config.ProtocolType), config.Certificate)
     {
         if (config.DualMode) udp.DualMode = true;
         udp.Bind(config.Address);
     }
-    // public QuicServer(X509Certificate2 cert): this(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)) { }
-    // public QuicServer(AddressFamily addressFamily): this(new Socket(addressFamily, SocketType.Dgram, ProtocolType.Udp)){}
-    // public QuicServer(AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType): this(new Socket(addressFamily, socketType, protocolType)){}
-
-    private void Bind(EndPoint endPoint) => udp.Bind(endPoint);
-    private void Bind() => udp.Bind(new IPEndPoint(IPAddress.Any, 0));
-    private void Bind(ushort port) => udp.Bind(new IPEndPoint(IPAddress.Any, port));
-    private void Bind(string address) => udp.Bind(IPEndPoint.Parse(address));
-    private void Bind(string ipAddress, ushort port) => udp.Bind(new IPEndPoint(IPAddress.Parse(ipAddress), port));
 
 
     protected (EndPoint,byte[]) ReceiveDgram()
@@ -71,12 +62,12 @@ public class QuicServer(Socket socket, X509Certificate2 cert): IDisposable
         return (dgram.RemoteEndPoint, [.. window[..dgram.ReceivedBytes]]);
     }
 
-    protected (EndPoint,List<IQuicPacket>) Receive()
+    public (EndPoint,List<IQuicPacket>) Receive()
     {
         var (from, bytes) = ReceiveDgram();
         return (from, IQuicPacket.ParseAll(ScidLength, bytes));
     }
-    protected async Task<(EndPoint,List<IQuicPacket>)> ReceiveAsync()
+    public async Task<(EndPoint,List<IQuicPacket>)> ReceiveAsync()
     {
         var (from, bytes) = await ReceiveDgramAsync();
         return (from, IQuicPacket.ParseAll(ScidLength, bytes));
@@ -88,26 +79,26 @@ public class QuicServer(Socket socket, X509Certificate2 cert): IDisposable
     public void Dispose() => udp.Dispose();
 }
 
-public class QuicServerConfig()
+public class QuicConfig()
 {
     public required EndPoint Address { get; init; }
     public required X509Certificate2 Certificate { get; init; }
-    public AddressFamily AddressFamily { get; init; } = AddressFamily.InterNetwork;
+    public AddressFamily AddressFamily { get; init; } = AddressFamily.InterNetworkV6;
     public SocketType SocketType { get; init; } = SocketType.Dgram;
     public ProtocolType ProtocolType { get; init; } = ProtocolType.Udp;
     public bool DualMode { get; init; } = true;
 
-    public static QuicServerConfig FromPKCS12((string path, string password) pkcs12, EndPoint endPoint)
+    public static QuicConfig FromPKCS12((string path, string password) pkcs12, EndPoint endPoint)
     {
         return new(){
             Address = endPoint,
             Certificate = X509CertificateLoader.LoadPkcs12FromFile(pkcs12.path, pkcs12.password)
         };
     }
-    public static QuicServerConfig FromPKCS12((string,string) pkcs12, ushort port) => FromPKCS12(pkcs12, new IPEndPoint(IPAddress.Any, port));
-    public static QuicServerConfig FromPKCS12((string,string) pkcs12, string address) => FromPKCS12(pkcs12, IPEndPoint.Parse(address));
+    public static QuicConfig FromPKCS12((string,string) pkcs12, ushort port) => FromPKCS12(pkcs12, new IPEndPoint(IPAddress.IPv6Any, port));
+    public static QuicConfig FromPKCS12((string,string) pkcs12, string address) => FromPKCS12(pkcs12, IPEndPoint.Parse(address));
 
-    public static QuicServerConfig SelfSigned(EndPoint endPoint)
+    public static QuicConfig SelfSigned(EndPoint endPoint)
     {
         // using RSA rsa = RSA.Create(2048);
         using ECDsa ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -135,6 +126,6 @@ public class QuicServerConfig()
             Certificate = cert,
         };
     }
-    public static QuicServerConfig SelfSigned(ushort port) => SelfSigned(new IPEndPoint(IPAddress.Any, port));
-    public static QuicServerConfig SelfSigned(string address) => SelfSigned(IPEndPoint.Parse(address));
+    public static QuicConfig SelfSigned(ushort port) => SelfSigned(new IPEndPoint(IPAddress.Any, port));
+    public static QuicConfig SelfSigned(string address) => SelfSigned(IPEndPoint.Parse(address));
 }

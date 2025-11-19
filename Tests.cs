@@ -624,82 +624,79 @@ public class Tests
     [Fact]
     public async Task QuicPacketDumpServer()
     {
-        using QuicServer quic = new();
+        using QuicKernel quic = new(QuicConfig.SelfSigned(2048));
         // quic.Bind(2048);
         
-        // for(int i = 0; i < 10; i++)
-        // {
-        //     var (_, packs) = await quic.ReceiveAsync();
-        //     foreach (var pack in packs)
-        //     {
-        //         if (pack is IQuicLongPacket packet)
-        //         {
-        //             string dump = "";
+        for(int i = 0; i < 10; i++)
+        {
+            var (_, packs) = await quic.ReceiveAsync();
+            foreach (var pack in packs)
+            {
+                if (pack is IQuicLongPacket packet)
+                {
+                    string dump = "";
 
-        //             dump+=packet.GetType().FullName;
-        //             dump+="{\n";
-        //             dump+=$"    HeaderForm: {packet.HeaderForm},\n";
-        //             dump+=$"    Type: {packet.Type},\n";
-        //             dump+=$"    TypeSpecific: {packet.TypeSpecific},\n";
-        //             dump+=$"    Version: {packet.Version},\n";
-        //             dump+=$"    DciLength: {packet.DciLength},\n";
-        //             dump+=$"    Dci: [ "; foreach (var b in packet.Dci) dump += $"{b}, "; dump += "],\n";
-        //             dump+=$"    SciLength: {packet.SciLength},\n";
-        //             dump+=$"    Sci: [ "; foreach (var b in packet.Sci) dump += $"{b}, "; dump += "],\n";
-        //             // dump+=$"    TsPayload: [ "; foreach (var b in packet.TsPayload) dump += $"{b}, "; dump += "],\n";
-        //             if (packet is QuicVersionPacket v) dump += $"    SupportedVersion: {v.SupportedVersion}\n";
-        //             else if (packet is QuicInitialPacket s)
-        //             {
-        //                 dump += $"    TokenLength: {s.TokenLength}\n";
-        //                 dump += $"    Token: [ "; foreach (var b in s.Token) dump += $"{b}, "; dump += "],\n";
-        //                 dump += $"    Length: {s.Length}\n";
-        //                 dump += $"    PacketNumberLength: {s.PacketNumberLength}\n";
-        //                 dump += $"    PacketNumber: {s.PacketNumber}\n";
-        //                 dump += $"    Payload: [ "; foreach (var b in s.Payload) dump += $"{b}, "; dump += "],\n";
-        //             }
-        //             else if (packet is QuicZeroRttPacket z)
-        //             {
-        //                 dump += $"    Length: {z.Length}\n";
-        //                 dump += $"    PacketNumberLength: {z.PacketNumberLength}\n";
-        //                 dump += $"    PacketNumber: {z.PacketNumber}\n";
-        //                 dump += $"    Payload: [ "; foreach (var b in z.Payload) dump += $"{b}, "; dump += "],\n";
-        //             }
-        //             else if (packet is QuicHandshakePacket h)
-        //             {
-        //                 dump += $"    Length: {h.Length}\n";
-        //                 dump += $"    PacketNumberLength: {h.PacketNumberLength}\n";
-        //                 dump += $"    PacketNumber: {h.PacketNumber}\n";
-        //                 dump += $"    Payload: [ "; foreach (var b in h.Payload) dump += $"{b}, "; dump += "],\n";
-        //             }
-        //             else if (packet is QuicRetryPacket r)
-        //             {
-        //                 dump += $"    RetryToken: [ "; foreach (var b in r.RetryToken) dump += $"{b}, "; dump += "],\n";
-        //                 dump += $"    RetryIntegrityTag: [ "; foreach (var b in r.RetryIntegrityTag) dump += $"{b}, "; dump += "],\n";
-        //             }
-        //             dump+="}";
+                    dump+=packet.GetType().FullName;
+                    dump+="{\n";
+                    dump+=$"    HeaderForm: {packet.HeaderForm},\n";
+                    dump+=$"    Type: {packet.Type},\n";
+                    dump+=$"    TypeSpecific: {packet.TypeSpecific},\n";
+                    dump+=$"    Version: {packet.Version},\n";
+                    dump+=$"    DciLength: {packet.DciLength},\n";
+                    dump+=$"    Dci: [ "; foreach (var b in packet.Dci) dump += $"{b}, "; dump += "],\n";
+                    dump+=$"    SciLength: {packet.SciLength},\n";
+                    dump+=$"    Sci: [ "; foreach (var b in packet.Sci) dump += $"{b}, "; dump += "],\n";
+                    // dump+=$"    TsPayload: [ "; foreach (var b in packet.TsPayload) dump += $"{b}, "; dump += "],\n";
+                    if (packet is QuicVersionPacket v) dump += $"    SupportedVersion: {v.SupportedVersion}\n";
+                    else if (packet is QuicInitialPacket s)
+                    {
+                        dump += $"    TokenLength: {s.TokenLength}\n";
+                        dump += $"    Token: [ "; foreach (var b in s.Token) dump += $"{b}, "; dump += "],\n";
+                        dump += $"    Length: {s.Length}\n";
+                        dump += $"    PacketNumberLength: {s.PacketNumberLength}\n";
+                        dump += $"    Payload: [ "; foreach (var b in s.PnPayload) dump += $"{b}, "; dump += "],\n";
+                    }
+                    else if (packet is QuicZeroRttPacket z)
+                    {
+                        dump += $"    Length: {z.Length}\n";
+                        dump += $"    PacketNumberLength: {z.PacketNumberLength}\n";
+                        dump += $"    Payload: [ "; foreach (var b in z.PnPayload) dump += $"{b}, "; dump += "],\n";
+                    }
+                    else if (packet is QuicHandshakePacket h)
+                    {
+                        dump += $"    Length: {h.Length}\n";
+                        dump += $"    PacketNumberLength: {h.PacketNumberLength}\n";
+                        dump += $"    Payload: [ "; foreach (var b in h.PnPayload) dump += $"{b}, "; dump += "],\n";
+                    }
+                    else if (packet is QuicRetryPacket r)
+                    {
+                        dump += $"    RetryToken: [ "; foreach (var b in r.RetryToken) dump += $"{b}, "; dump += "],\n";
+                        dump += $"    RetryIntegrityTag: [ "; foreach (var b in r.RetryIntegrityTag) dump += $"{b}, "; dump += "],\n";
+                    }
+                    dump+="}";
 
-        //             Console.WriteLine(dump);
+                    Console.WriteLine(dump);
                     
-        //             // List<IQuicFrame> frames = [];
-        //             // string fdump = "frames = [ ";
+                    // List<IQuicFrame> frames = [];
+                    // string fdump = "frames = [ ";
                     
-        //             // if (packet is QuicInitialPacket ss) frames = IQuicFrame.ParseAll(ss.Payload);
-        //             // if (packet is QuicZeroRttPacket zz) frames = IQuicFrame.ParseAll(zz.Payload);
-        //             // if (packet is QuicHandshakePacket hh) frames = IQuicFrame.ParseAll(hh.Payload);
+                    // if (packet is QuicInitialPacket ss) frames = IQuicFrame.ParseAll(ss.Payload);
+                    // if (packet is QuicZeroRttPacket zz) frames = IQuicFrame.ParseAll(zz.Payload);
+                    // if (packet is QuicHandshakePacket hh) frames = IQuicFrame.ParseAll(hh.Payload);
 
-        //             // foreach (var frame in frames)
-        //             // {
-        //             //     fdump += $"{frame.Type}, ";
-        //             // }
+                    // foreach (var frame in frames)
+                    // {
+                    //     fdump += $"{frame.Type}, ";
+                    // }
 
-        //             // fdump+="]\n";
-        //             // Console.WriteLine(fdump);
-        //         }
-        //         else if (pack is QuicShortPacket shor)
-        //         {
-        //             Console.WriteLine("short packet");
-        //         }
-        //     }
-        // }
+                    // fdump+="]\n";
+                    // Console.WriteLine(fdump);
+                }
+                else if (pack is QuicShortPacket shor)
+                {
+                    Console.WriteLine("short packet");
+                }
+            }
+        }
     }
 }
