@@ -146,8 +146,8 @@ public readonly struct QuicInitialPacket() : IQuicLongPacket
     public long TokenLength { get; init; } // varint
     public byte[] Token { get; init; } = [];
     public long Length { get; init; } // varint
-    public uint PacketNumber { get; init; }
-    public byte[] Payload { get; init; } = [];
+    // public uint PacketNumber { get; init; }
+    public byte[] PnPayload { get; init; } = [];
 
     public static QuicInitialPacket Parse(ref int pos, byte[] bytes)
     {
@@ -165,8 +165,8 @@ public readonly struct QuicInitialPacket() : IQuicLongPacket
         byte[] token = bytes[pos..(pos + (int)tlen)];
         pos += (int)tlen;
         long length = IQuicFrame.VarintFrom(ref pos, bytes);
-        uint pn = 0;
-        for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[pos++] << (8 * (pnLength - 1 - i));
+        // uint pn = 0;
+        // for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[pos++] << (8 * (pnLength - 1 - i));
         byte[] payload = bytes[pos..(pos - pnLength + (int)length)];
         pos += (int)length;
 
@@ -184,24 +184,24 @@ public readonly struct QuicInitialPacket() : IQuicLongPacket
             TokenLength = tlen,
             Token = token,
             Length = length,
-            PacketNumber = pn,
-            Payload = payload,
+            // PacketNumber = pn,
+            PnPayload = payload,
         };
     }
-    public static byte[] Create(uint version, byte[] dci, byte[] sci, byte[] token, uint packetNumber, byte[] payload)
+    public static byte[] Create(uint version, byte[] dci, byte[] sci, byte[] token, byte packetNumberLength, byte[] pnPayload)
     {
-        byte[] pn;
-        if(packetNumber <= 0xff) pn = [(byte)packetNumber];
-        else if(packetNumber <= 0xff_ff) pn = [(byte)(packetNumber >> 8), (byte)packetNumber];
-        else if(packetNumber <= 0xff_ff_ff) pn = [(byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
-        else pn = [(byte)(packetNumber >> 24), (byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
+        // byte[] pn;
+        // if(packetNumber <= 0xff) pn = [(byte)packetNumber];
+        // else if(packetNumber <= 0xff_ff) pn = [(byte)(packetNumber >> 8), (byte)packetNumber];
+        // else if(packetNumber <= 0xff_ff_ff) pn = [(byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
+        // else pn = [(byte)(packetNumber >> 24), (byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
 
         return [
-            (byte)(0b1100_0000 | (pn.Length - 1)), 
+            (byte)(0b1100_0000 | (packetNumberLength & 0b11)), 
             (byte)(version >> 24), (byte)(version >> 16), (byte)(version >> 8), (byte)version, 
             (byte)dci.Length, .. dci, (byte)sci.Length, .. sci, 
             .. IQuicFrame.EncodeVarint((ulong)token.Length), .. token, 
-            .. IQuicFrame.EncodeVarint((ulong)(payload.Length + pn.Length)), .. pn, .. payload,
+            .. IQuicFrame.EncodeVarint((ulong)pnPayload.Length), .. pnPayload,
         ];
     }
 }
@@ -220,8 +220,8 @@ public readonly struct QuicZeroRttPacket() : IQuicLongPacket
     public byte SciLength { get; init; }
     public byte[] Sci { get; init; } = [];
     public long Length { get; init; } // varint
-    public uint PacketNumber { get; init; }
-    public byte[] Payload { get; init; } = [];
+    // public uint PacketNumber { get; init; }
+    public byte[] PnPayload { get; init; } = [];
 
     public static QuicZeroRttPacket Parse(ref int pos, byte[] bytes)
     {
@@ -236,9 +236,9 @@ public readonly struct QuicZeroRttPacket() : IQuicLongPacket
 
         byte pnLength = (byte)((typeSpecific & 0b0011) + 1);
         long length = IQuicFrame.VarintFrom(ref pos, bytes);
-        uint pn = 0;
-        for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[pos + i] << (8 * (pnLength - 1 - i));
-        pos += pnLength;
+        // uint pn = 0;
+        // for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[pos + i] << (8 * (pnLength - 1 - i));
+        // pos += pnLength;
         byte[] payload = bytes[pos..(pos - pnLength + (int)length)];
         pos += (int)length;
 
@@ -254,23 +254,22 @@ public readonly struct QuicZeroRttPacket() : IQuicLongPacket
             Sci = sci,
 
             Length = length,
-            PacketNumber = pn,
-            Payload = payload,
+            PnPayload = payload,
         };
     }
-    public static byte[] Create(uint version, byte[] dci, byte[] sci, uint packetNumber, byte[] payload)
+    public static byte[] Create(uint version, byte[] dci, byte[] sci, byte packetNumberLength, byte[] pnPayload)
     {
-        byte[] pn;
-        if(packetNumber <= 0xff) pn = [(byte)packetNumber];
-        else if(packetNumber <= 0xff_ff) pn = [(byte)(packetNumber >> 8), (byte)packetNumber];
-        else if(packetNumber <= 0xff_ff_ff) pn = [(byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
-        else pn = [(byte)(packetNumber >> 24), (byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
+        // byte[] pn;
+        // if(packetNumber <= 0xff) pn = [(byte)packetNumber];
+        // else if(packetNumber <= 0xff_ff) pn = [(byte)(packetNumber >> 8), (byte)packetNumber];
+        // else if(packetNumber <= 0xff_ff_ff) pn = [(byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
+        // else pn = [(byte)(packetNumber >> 24), (byte)(packetNumber >> 16), (byte)(packetNumber >> 8), (byte)packetNumber];
 
         return [
-            (byte)(0b1101_0000 | (pn.Length - 1)), 
+            (byte)(0b1101_0000 | (packetNumberLength & 0b11)), 
             (byte)(version >> 24), (byte)(version >> 16), (byte)(version >> 8), (byte)version, 
             (byte)dci.Length, .. dci, (byte)sci.Length, .. sci,
-            .. IQuicFrame.EncodeVarint((ulong)(payload.Length + pn.Length)), .. pn, .. payload,
+            .. IQuicFrame.EncodeVarint((ulong)pnPayload.Length), .. pnPayload,
         ];
     }
 }
@@ -289,8 +288,8 @@ public readonly struct QuicHandshakePacket() : IQuicLongPacket
     public byte SciLength { get; init; }
     public byte[] Sci { get; init; } = [];
     public long Length { get; init; } // varint
-    public uint PacketNumber { get; init; }
-    public byte[] Payload { get; init; } = [];
+    // public uint PacketNumber { get; init; }
+    public byte[] PnPayload { get; init; } = [];
 
     public static QuicHandshakePacket Parse(ref int pos, byte[] bytes)
     {
@@ -305,10 +304,10 @@ public readonly struct QuicHandshakePacket() : IQuicLongPacket
 
         byte pnLength = (byte)((typeSpecific & 0b0011) + 1);
         long length = IQuicFrame.VarintFrom(ref pos, bytes);
-        uint pn = 0;
-        for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[pos + i] << (8 * (pnLength - 1 - i));
-        pos += pnLength;
-        byte[] payload = bytes[pos..(pos - pnLength + (int)length)];
+        // uint pn = 0;
+        // for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[pos + i] << (8 * (pnLength - 1 - i));
+        // pos += pnLength;
+        byte[] payload = bytes[pos..(int)(pos + length)];
         pos += (int)length;
 
         return new()
@@ -322,17 +321,17 @@ public readonly struct QuicHandshakePacket() : IQuicLongPacket
             Sci = sci,
 
             Length = length,
-            PacketNumber = pn,
-            Payload = payload,
+            // PacketNumber = pn,
+            PnPayload = payload,
         };
     }
-    public static byte[] Create(uint version, byte[] dci, byte[] sci, byte[] retryToken, byte[] retryIntegrityTag)
+    public static byte[] Create(uint version, byte[] dci, byte[] sci, byte packetNumberLength, byte[] pnPayload)
     {
         return [
-            0b1111_0000, 
+            (byte)(0b1110_0000 | (packetNumberLength & 0b11)), 
             (byte)(version >> 24), (byte)(version >> 16), (byte)(version >> 8), (byte)version, 
             (byte)dci.Length, .. dci, (byte)sci.Length, .. sci,
-            .. retryToken, .. retryIntegrityTag,
+            .. IQuicFrame.EncodeVarint((ulong)pnPayload.Length), .. pnPayload,
         ];
     }
 }
@@ -379,6 +378,15 @@ public readonly struct QuicRetryPacket() : IQuicLongPacket
             RetryIntegrityTag = tag,
         };
     }
+    public static byte[] Create(uint version, byte[] dci, byte[] sci, byte[] retryToken, byte[] retryIntegrityTag)
+    {
+        return [
+            0b1111_0000,
+            (byte)(version >> 24), (byte)(version >> 16), (byte)(version >> 8), (byte)version,
+            (byte)dci.Length, .. dci, (byte)sci.Length, .. sci,
+            .. retryToken, .. retryIntegrityTag,
+        ];
+    }
 }
 
 
@@ -392,8 +400,8 @@ public readonly struct QuicShortPacket(): IQuicPacket
     public bool KeyPhase { get; init; }
     public byte PacketNumberLength { get; init; }
     public byte[] Dci { get; init; } = []; // Destination Connection ID
-    public uint PacketNumber { get; init; }
-    public byte[] PacketPayload { get; init; } = [];
+    // public uint PacketNumber { get; init; }
+    public byte[] PnPayload { get; init; } = [];
 
     public static QuicShortPacket Parse(ref int pos, int DciLength, byte[] bytes)
     {
@@ -405,9 +413,9 @@ public readonly struct QuicShortPacket(): IQuicPacket
         int pnLength = (bytes[pos++] & 0b0000_0011) + 1;
         byte[] dci = bytes[pos..(pos + DciLength)];
         pos += DciLength;
-        uint pn = 0;
-        for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[i + pos] << (8 * (pnLength - 1 - i));
-        pos += pnLength;
+        // uint pn = 0;
+        // for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[i + pos] << (8 * (pnLength - 1 - i));
+        // pos += pnLength;
 
         byte[] payload = bytes[pos..];
 
@@ -419,35 +427,35 @@ public readonly struct QuicShortPacket(): IQuicPacket
             KeyPhase = keyphase,
             PacketNumberLength = (byte)pnLength,
             Dci = dci,
-            PacketNumber = pn,
-            PacketPayload = payload,
+            // PacketNumber = pn,
+            PnPayload = payload,
         };
     }
-    public static byte[] Create(bool spin, byte reserved, bool keyphase, uint packetNumber, byte[] dci, byte[] payload)
+    public static byte[] Create(bool spin, byte reserved, bool keyphase, byte packetNumberLength, byte[] dci, byte[] pnPayload)
     {
-        byte[] pn;
+        // byte[] pn;
 
-        var pn0 = (byte)(packetNumber >> 24);
-        var pn1 = (byte)(packetNumber >> 16);
-        var pn2 = (byte)(packetNumber >> 8);
-        var pn3 = (byte)packetNumber;
+        // var pn0 = (byte)(packetNumber >> 24);
+        // var pn1 = (byte)(packetNumber >> 16);
+        // var pn2 = (byte)(packetNumber >> 8);
+        // var pn3 = (byte)packetNumber;
 
-        if (pn0 != 0) pn = [pn0, pn1, pn2, pn3];
-        else if (pn1 != 0) pn = [pn1, pn2, pn3];
-        else if (pn2 != 0) pn = [pn2, pn3];
-        else pn = [pn3];
+        // if (pn0 != 0) pn = [pn0, pn1, pn2, pn3];
+        // else if (pn1 != 0) pn = [pn1, pn2, pn3];
+        // else if (pn2 != 0) pn = [pn2, pn3];
+        // else pn = [pn3];
 
-        byte[] packet = new byte[payload.Length + dci.Length + pn.Length + 1];
+        byte[] packet = new byte[pnPayload.Length + dci.Length + 1];
         int pos = 0;
 
         packet[pos] |= spin ? (byte)0b0010_0000 : (byte)0;
         packet[pos] |= (byte)((reserved & 0b11) << 3);
         packet[pos] |= keyphase ? (byte)0b0000_0100 : (byte)0;
-        packet[pos] |= (byte)(pn.Length - 1);
+        packet[pos] |= (byte)(packetNumberLength & 0b11);
         pos += 1;
         foreach (var b in dci) packet[pos++] = b;
-        foreach (var b in pn) packet[pos++] = b;
-        foreach (var b in payload) packet[pos++] = b;
+        // foreach (var b in pn) packet[pos++] = b;
+        foreach (var b in pnPayload) packet[pos++] = b;
 
         return packet;
     }
