@@ -632,13 +632,14 @@ public class Tests
             var (_, packs) = await quic.ReceiveAsync();
             foreach (var pack in packs)
             {
+                string dump = "";
+                dump+=pack.GetType().FullName;
+                dump+="{\n";
+                dump+=$"    HeaderForm: {(pack.HeaderForm != 0 ? "Long" : "Short")},\n";
+
                 if (pack is IQuicLongPacket packet)
                 {
-                    string dump = "";
 
-                    dump+=packet.GetType().FullName;
-                    dump+="{\n";
-                    dump+=$"    HeaderForm: {packet.HeaderForm},\n";
                     dump+=$"    Type: {packet.Type},\n";
                     dump+=$"    TypeSpecific: {packet.TypeSpecific},\n";
                     dump+=$"    Version: {packet.Version},\n";
@@ -673,9 +674,7 @@ public class Tests
                         dump += $"    RetryToken: [ "; foreach (var b in r.RetryToken) dump += $"{b}, "; dump += "],\n";
                         dump += $"    RetryIntegrityTag: [ "; foreach (var b in r.RetryIntegrityTag) dump += $"{b}, "; dump += "],\n";
                     }
-                    dump+="}";
 
-                    Console.WriteLine(dump);
                     
                     // List<IQuicFrame> frames = [];
                     // string fdump = "frames = [ ";
@@ -696,6 +695,9 @@ public class Tests
                 {
                     Console.WriteLine("short packet");
                 }
+
+                dump+="}";
+                Console.WriteLine(dump);
             }
         }
     }

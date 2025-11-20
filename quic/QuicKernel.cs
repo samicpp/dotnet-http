@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 
 // handles read loop etc., to ensure proper connection management
@@ -74,6 +75,96 @@ public class QuicKernel(Socket socket, X509Certificate2 cert): IDisposable
     }
 
     
+    static readonly byte[] InitialSalt = [
+        0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3,
+        0x4d, 0x17, 0x9a, 0xe6, 0xa4, 0xc8, 0x0c, 0xad,
+        0xcc, 0xbb, 0x7f, 0x0a
+    ];
+    /*public static (byte[] key, byte[] iv, byte[] hp) DeriveInitialKeys(byte[] dcid)
+    {
+        using HMACSHA256 hmac = new(InitialSalt);
+        byte[] initialSecret = hmac.ComputeHash(dcid);
+
+        return 
+        (
+            HkdfExpandLabel(initialSecret, "client in", 16),
+            HkdfExpandLabel(initialSecret, "quic iv", 12),
+            HkdfExpandLabel(initialSecret, "quic hp", 16)
+        );
+    }*/
+    private static byte[] HkdfExpandLabel(byte[] secret, string label, int length)
+    {
+        byte[] fullLabel = Encoding.ASCII.GetBytes("tls13 " + label);
+        byte[] info = new byte[fullLabel.Length + 4];
+
+        info[0] = (byte)(length >> 8);
+        info[1] = (byte)(length & 0xff);
+
+        info[2] = (byte)fullLabel.Length;
+
+        Buffer.BlockCopy(fullLabel, 0, info, 3, fullLabel.Length);
+
+        info[info.Length - 1] = 0;
+
+        using var hkdf = new HMACSHA256(secret);
+        byte[] prk = hkdf.ComputeHash(info);
+        return prk[..length];
+    }
+
+    public void HandlePacket(IQuicPacket packet)
+    {
+        if (packet is QuicShortPacket shor)
+        {
+            
+        }
+        else if (packet is QuicVersionPacket version)
+        {
+            
+        }
+        else if (packet is QuicInitialPacket initial)
+        {
+            
+        }
+        else if (packet is QuicZeroRttPacket zero)
+        {
+            
+        }
+        else if (packet is QuicHandshakePacket handshake)
+        {
+            
+        }
+        else if (packet is QuicRetryPacket retry)
+        {
+            
+        }
+    }
+    public async Task HandlePacketAsync(IQuicPacket packet)
+    {
+        if (packet is QuicShortPacket shor)
+        {
+            
+        }
+        else if (packet is QuicVersionPacket version)
+        {
+            
+        }
+        else if (packet is QuicInitialPacket initial)
+        {
+            
+        }
+        else if (packet is QuicZeroRttPacket zero)
+        {
+            
+        }
+        else if (packet is QuicHandshakePacket handshake)
+        {
+            
+        }
+        else if (packet is QuicRetryPacket retry)
+        {
+            
+        }
+    }
     
 
     public void Dispose() => udp.Dispose();
