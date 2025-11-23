@@ -19,6 +19,7 @@ using Compression = Samicpp.Http.CompressionType;
 using Samicpp.Http.Debug;
 using System.Linq;
 using Samicpp.Http.Quic;
+using Samicpp.Http.Vectors;
 
 public class TcpSocket(NetworkStream stream) : ADualSocket
 {
@@ -93,6 +94,36 @@ public class Tests
             var value = Encoding.UTF8.GetString(v);
             Console.WriteLine($"{header}: {value}");
         }
+    }
+
+
+    [Fact]
+    public void VectorTest()
+    {
+        var vec = new Vector<int>();
+
+        try
+        {
+            vec[0] = 1;
+        }
+        catch(Exception e)
+        {
+            Console.WriteLine(e);
+        }
+
+        vec.Append(1);
+        Console.WriteLine(vec[0]);
+
+    }
+    [Fact(Skip = "large memory footprint")]
+    public void BigVectorTest()
+    {
+        using var vec = new Vector<int>(int.MaxValue * 3L, true);
+
+        Console.WriteLine($"last item before push = {vec[vec.Length-1]}");
+        vec.Append(1);
+        Console.WriteLine($"last item after push = {vec[vec.Length-1]}");
+        Console.WriteLine($"array length = {vec.Length}");
     }
 
 
