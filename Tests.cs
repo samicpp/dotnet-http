@@ -100,28 +100,60 @@ public class Tests
     [Fact]
     public void VectorTest()
     {
-        var vec = new Vector<int>();
+        using Vector<int> vec =
+        [
+            1, 2, 300, 40000,
+        ];
+        using Vector<byte> vec2 = new(8, true);
 
         try
         {
-            vec[0] = 1;
+            vec[100L] = 1;
         }
         catch(Exception e)
         {
             Console.WriteLine(e);
         }
 
-        vec.Append(1);
-        Console.WriteLine(vec[0]);
+        vec.Add(1);
+        Console.WriteLine(vec[^1]);
+        Console.WriteLine(vec2);
+        
+        string dump = $"vec = [ ";
+        foreach (var i in vec) dump += $"{i}, ";
+        dump += "]";
+        Console.WriteLine(dump);
 
+        vec2.Expand(8);
+
+        dump = $"vec2 = [ ";
+        foreach (var i in vec2) dump += $"{i}, ";
+        dump += "]";
+        Console.WriteLine(dump);
+
+        vec2.Expand(-8);
+
+        dump = $"vec2 = [ ";
+        foreach (var i in vec2) dump += $"{i}, ";
+        dump += "]";
+        Console.WriteLine(dump);
+
+        vec2.Add(1, 2, 4);
+
+        dump = $"vec2 = [ ";
+        foreach (var i in vec2) dump += $"{i}, ";
+        dump += "]";
+        Console.WriteLine(dump);
+        
     }
+
     [Fact(Skip = "large memory footprint")]
     public void BigVectorTest()
     {
         using var vec = new Vector<int>(int.MaxValue * 3L, true);
 
         Console.WriteLine($"last item before push = {vec[vec.Length-1]}");
-        vec.Append(1);
+        vec.Add(1);
         Console.WriteLine($"last item after push = {vec[vec.Length-1]}");
         Console.WriteLine($"array length = {vec.Length}");
     }
@@ -639,7 +671,7 @@ public class Tests
         udp.Bind(new IPEndPoint(IPAddress.Any, 1024));
         int count = 0;
 
-        byte[] window = new byte[2048];
+        var window = new byte[2048];
         while (true)
         {
             if (count > 10) break;

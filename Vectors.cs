@@ -3,15 +3,17 @@ namespace Samicpp.Http.Vectors;
 using System.Collections;
 using System.Runtime.InteropServices;
 
-public unsafe class Vector<T> : IDisposable, IEnumerable<T>
+public unsafe class Vector<T> : IDisposable, IEnumerable<T> //, ICollection<T>
 where T: unmanaged
 {
     T* ptr;
     nuint len;
     bool growable = false;
 
+    // public int Count { get => (int)len; }
     public nuint Length { get => len; }
-    public bool Growable { get => growable; }
+    public bool Growable { get => growable; init => growable = value; }
+    // public bool IsReadOnly { get; } = false;
 
     public Vector() : this(0, true) {}
     public Vector(long length, bool expandable = false) : this((nuint)length, expandable) {}
@@ -19,7 +21,7 @@ where T: unmanaged
     {
         void* res = NativeMemory.Alloc(length * (nuint)sizeof(T));
         
-        if ((nuint)res == 0)
+        if (res == null)
         {
             throw new NullReferenceException("memory allocation failed");
         }
@@ -28,11 +30,15 @@ where T: unmanaged
         ptr = (T*)res;
         growable = expandable;
     }
+    public Vector(T[] initial) : this(initial.Length)
+    {
+        fixed (T* arr = initial) NativeMemory.Copy(arr, ptr, (nuint)initial.Length * (nuint)sizeof(T));
+    }
     
     ~Vector() => Dispose();
     public void Dispose()
     {
-        NativeMemory.Free(ptr);
+        if (ptr != null) NativeMemory.Free(ptr);
         ptr = null;
         len = 0;
         growable = false;
@@ -41,15 +47,15 @@ where T: unmanaged
 
     // public T? Get(nuint index) => index >= len ? null : ptr[index];
     // public unsafe T GetUnchecked(nuint index) => ptr[index];
-    public bool TryGetValue(nuint index, out T? res)
+    public bool TryGetValue(nuint index, out T res)
     {
-        if (index >= len)
+        if (index < len)
         {
             res = ptr[index];
             return true;
         }
 
-        res = null;
+        res = default;
         return false;
     }
 
@@ -74,42 +80,62 @@ where T: unmanaged
             return AsSpan((nuint)start, (nuint)offset);
         }
     }
-
-    public void Resize(nuint length)
+    public T this[Index index]
     {
-        if (!growable) throw new NotSupportedException("array is not growable");
-        void* nptr = NativeMemory.Alloc(length * (nuint)sizeof(T));
+        get
+        {
+            nint pos = index.IsFromEnd ? (nint)len - index.Value : index.Value;
+            return this[(nuint)pos];
+        }
+    }
 
-        if ((nuint)nptr == 0)
+    void Resize(nuint length)
+    {
+        void* nptr = NativeMemory.Realloc(ptr, length * (nuint)sizeof(T));
+
+        if (nptr == null)
         {
             throw new InsufficientMemoryException("memory allocation failed");
             // throw new OutOfMemoryException("memory allocation failed");
         }
 
-        if (length < len) NativeMemory.Copy(ptr, nptr, length * (nuint)sizeof(T));
-        else NativeMemory.Copy(ptr, nptr, len * (nuint)sizeof(T));
-
-        NativeMemory.Free(ptr);
+        // if (length < len) NativeMemory.Copy(ptr, nptr, length * (nuint)sizeof(T));
+        // else NativeMemory.Copy(ptr, nptr, len * (nuint)sizeof(T));
+        // NativeMemory.Free(ptr);
 
         len = length;
         ptr = (T*)nptr;
     }
-    public void ExpandWith(Span<T> span)
+    public void Expand(nint size)
     {
-        nuint olen = len;
-        Resize(len + (nuint)span.Length);
-        
-        for(int i = 0; i < span.Length; i++) ptr[olen + (nuint)i] = span[i];
+        if (!growable) throw new NotSupportedException("array is not growable");
+        // nint nsize = (nint)len + size;
+        // Resize((nuint)nsize);
+        nuint fsize = (nuint)nint.Abs(size);
+
+        if (size < 0 && fsize > len) Resize(0);
+        else if (size < 0) Resize(len - fsize);
+        else Resize(len + fsize);
     }
-    public void Append(T item)
+    public void Add(T item)
     {
+        if (!growable) throw new NotSupportedException("array is not growable");
         Resize(len + 1);
         ptr[len - 1] = item;
     }
-
-    public void Clear()
+    public void Add(params T[] items) => Add(items.AsSpan());
+    public void Add(Span<T> span)
     {
-        NativeMemory.Clear(ptr, len * (nuint)sizeof(T));
+        if (!growable) throw new NotSupportedException("array is not growable");
+        nuint olen = len;
+        Resize(len + (nuint)span.Length);
+        Span<T> dspan = AsSpan(olen, len - olen);
+        span.CopyTo(dspan);
+    }
+
+    public void Clear(nuint offset = 0)
+    {
+        NativeMemory.Clear(ptr + offset, (len - offset) * (nuint)sizeof(T));
     }
 
     public T[] ToArray()
@@ -127,13 +153,14 @@ where T: unmanaged
     }
     public Span<T> AsSpan(nuint offset, nuint length)
     {
-        if (offset > length) throw new ArgumentException("offset bigger than length");
+        // if (offset > length) throw new ArgumentException("offset bigger than length");
         if (offset > len || length > len - offset) throw new IndexOutOfRangeException("");
-        if (length - offset > int.MaxValue) throw new OverflowException("length too big");
+        if (length > int.MaxValue) throw new OverflowException("length too big");
         return new(ptr + offset, (int)length);
     }
 
     public IEnumerator<T> GetEnumerator() => new Enumerator(ptr, len);
+    public IEnumerator<T> GetEnumerator(nuint offset, nuint length) => new Enumerator(ptr + offset, length);
     IEnumerator IEnumerable.GetEnumerator() => new Enumerator(ptr, len);
     struct Enumerator(T* ptr, nuint len) : IEnumerator<T>
     {
@@ -145,7 +172,9 @@ where T: unmanaged
         object IEnumerator.Current => Current;
 
         public bool MoveNext() => (nuint)(++index) < len;
-        public void Reset() => index = 0;
+        public void Reset() => index = -1;
         public readonly void Dispose() { }
     }
+
+
 }
