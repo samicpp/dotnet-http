@@ -63,6 +63,17 @@ where T: unmanaged
         get =>     (ulong)i >= len || 0 > i ? throw new IndexOutOfRangeException($"{i} out of bounds") : ptr[(nuint)i];
         set => _ = (ulong)i >= len || 0 > i ? throw new IndexOutOfRangeException($"{i} out of bounds") : ptr[(nuint)i] = value;
     }
+    public Span<T> this[Range range]
+    {
+        get
+        {
+            nint start = range.Start.IsFromEnd ? (nint)len - range.Start.Value : range.Start.Value;
+            nint end = range.End.IsFromEnd ? (nint)len - range.End.Value : range.End.Value;
+            nint offset = end - start;
+
+            return AsSpan((nuint)start, (nuint)offset);
+        }
+    }
 
     public void Resize(nuint length)
     {
@@ -114,20 +125,27 @@ where T: unmanaged
         if (len > int.MaxValue) throw new OverflowException("length too big");
         return new(ptr, (int)len);
     }
+    public Span<T> AsSpan(nuint offset, nuint length)
+    {
+        if (offset > length) throw new ArgumentException("offset bigger than length");
+        if (offset > len || length > len - offset) throw new IndexOutOfRangeException("");
+        if (length - offset > int.MaxValue) throw new OverflowException("length too big");
+        return new(ptr + offset, (int)length);
+    }
 
     public IEnumerator<T> GetEnumerator() => new Enumerator(ptr, len);
     IEnumerator IEnumerable.GetEnumerator() => new Enumerator(ptr, len);
-    class Enumerator(T* ptr, nuint len) : IEnumerator<T>
+    struct Enumerator(T* ptr, nuint len) : IEnumerator<T>
     {
-        T* ptr = ptr;
-        nuint len = len;
+        readonly T* ptr = ptr;
+        readonly nuint len = len;
         nint index = -1;
 
-        public T Current => ptr[index];
+        public readonly T Current => ptr[index];
         object IEnumerator.Current => Current;
 
         public bool MoveNext() => (nuint)(++index) < len;
         public void Reset() => index = 0;
-        public void Dispose() { }
+        public readonly void Dispose() { }
     }
 }
