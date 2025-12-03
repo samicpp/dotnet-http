@@ -104,65 +104,86 @@ public class QuicKernel(Socket socket, X509Certificate2 cert): IDisposable
 
         Buffer.BlockCopy(fullLabel, 0, info, 3, fullLabel.Length);
 
-        info[info.Length - 1] = 0;
+        info[^1] = 0;
 
         using var hkdf = new HMACSHA256(secret);
         byte[] prk = hkdf.ComputeHash(info);
         return prk[..length];
     }
 
-    public void HandlePacket(IQuicPacket packet)
+    public void Incoming()
     {
-        if (packet is QuicShortPacket shor)
+        var (endPoint, bytes) = ReceiveDgram();
+        int pos = 0;
+        
+        while (pos < bytes.Length)
         {
-            
-        }
-        else if (packet is QuicVersionPacket version)
-        {
-            
-        }
-        else if (packet is QuicInitialPacket initial)
-        {
-            
-        }
-        else if (packet is QuicZeroRttPacket zero)
-        {
-            
-        }
-        else if (packet is QuicHandshakePacket handshake)
-        {
-            
-        }
-        else if (packet is QuicRetryPacket retry)
-        {
-            
+            int bpos = pos;
+            var (done, packet) = IQuicPacket.Parse(ref pos, ScidLength, bytes);
+
+            if (packet is QuicShortPacket shor)
+            {
+                
+            }
+            else if (packet is QuicVersionPacket version)
+            {
+                
+            }
+            else if (packet is QuicInitialPacket initial)
+            {
+                
+            }
+            else if (packet is QuicZeroRttPacket zero)
+            {
+                
+            }
+            else if (packet is QuicHandshakePacket handshake)
+            {
+                
+            }
+            else if (packet is QuicRetryPacket retry)
+            {
+                
+            }
+
+            if (done) break;
         }
     }
-    public async Task HandlePacketAsync(IQuicPacket packet)
+    public async Task IncomingAsync()
     {
-        if (packet is QuicShortPacket shor)
+        var (endPoint, bytes) = await ReceiveDgramAsync();
+        int pos = 0;
+        
+        while (pos < bytes.Length)
         {
+            var (done, packet) = IQuicPacket.Parse(ref pos, ScidLength, bytes);
             
-        }
-        else if (packet is QuicVersionPacket version)
-        {
-            
-        }
-        else if (packet is QuicInitialPacket initial)
-        {
-            
-        }
-        else if (packet is QuicZeroRttPacket zero)
-        {
-            
-        }
-        else if (packet is QuicHandshakePacket handshake)
-        {
-            
-        }
-        else if (packet is QuicRetryPacket retry)
-        {
-            
+            if (packet is QuicShortPacket shor)
+            {
+                
+            }
+            else if (packet is QuicVersionPacket version)
+            {
+                
+            }
+            else if (packet is QuicInitialPacket initial)
+            {
+                
+            }
+            else if (packet is QuicZeroRttPacket zero)
+            {
+                
+            }
+            else if (packet is QuicHandshakePacket handshake)
+            {
+                
+            }
+            else if (packet is QuicRetryPacket retry)
+            {
+                
+            }
+
+            if (done) break;
         }
     }
     

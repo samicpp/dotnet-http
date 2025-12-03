@@ -17,28 +17,29 @@ public interface IQuicPacket
 
         while (pos < bytes.Length)
         {
-            if ((bytes[pos] & 128) != 0)
-            {
-                bool fixedBit = (bytes[pos] & 0b0100_0000) != 0;
-                QuicPacketType type = (QuicPacketType)((bytes[pos] & 0b0011_0000) >> 4);
-
-                if (!fixedBit) packets.Add(QuicVersionPacket.Parse(ref pos, bytes));
-                else if (type == QuicPacketType.Initial) packets.Add(QuicInitialPacket.Parse(ref pos, bytes));
-                else if (type == QuicPacketType.ZeroRtt) packets.Add(QuicZeroRttPacket.Parse(ref pos, bytes));
-                else if (type == QuicPacketType.Handshake) packets.Add(QuicHandshakePacket.Parse(ref pos, bytes));
-                else
-                {
-                    packets.Add(QuicRetryPacket.Parse(ref pos, bytes));
-                    break;
-                }
-            }
-            else
-            {
-                packets.Add(QuicShortPacket.Parse(ref pos, dciLength, bytes));
-                break;
-            }
+            var (stop, packet) = Parse(ref pos, dciLength, bytes);
+            packets.Add(packet);
+            if (stop) break;
         }
         return packets;
+    }
+    public static (bool,IQuicPacket) Parse(ref int pos, int dciLength, byte[] bytes)
+    {
+        if ((bytes[pos] & 128) != 0)
+        {
+            bool fixedBit = (bytes[pos] & 0b0100_0000) != 0;
+            QuicPacketType type = (QuicPacketType)((bytes[pos] & 0b0011_0000) >> 4);
+
+            if (!fixedBit) return (false, QuicVersionPacket.Parse(ref pos, bytes));
+            else if (type == QuicPacketType.Initial) return (false, QuicInitialPacket.Parse(ref pos, bytes));
+            else if (type == QuicPacketType.ZeroRtt) return (false, QuicZeroRttPacket.Parse(ref pos, bytes));
+            else if (type == QuicPacketType.Handshake) return (false, QuicHandshakePacket.Parse(ref pos, bytes));
+            else return (true, QuicRetryPacket.Parse(ref pos, bytes));
+        }
+        else
+        {
+            return (true, QuicShortPacket.Parse(ref pos, dciLength, bytes));
+        }
     }
 }
 
