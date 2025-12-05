@@ -638,10 +638,13 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     {
                         sendLock.Release(); sendLocked = false;
                     }
-                    var frame = Readone(true);
-
-                    if (frame.type == Http2FrameType.WindowUpdate) Handle(frame);
-                    else que.Enqueue(frame);
+                    
+                    while (window <= 0 || status.window <= 0 || goaway != null)
+                    {
+                        // await Task.Yield();
+                        status = streams[streamID];
+                    }
+                    if (goaway != null) throw new Http2Exception.ConnectionClosed("closed while still sending data");
 
                     streamLock.Wait(); streamLocked = true;
                     status = streams[streamID];
@@ -717,11 +720,14 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     {
                         sendLock.Release(); sendLocked = false;
                     }
-                    var frame = await ReadoneAsync(true);
-
-                    if (frame.type == Http2FrameType.WindowUpdate) await HandleAsync(frame);
-                    else que.Enqueue(frame);
-
+                    
+                    while (window <= 0 || status.window <= 0 || goaway != null)
+                    {
+                        await Task.Yield();
+                        status = streams[streamID];
+                    }
+                    if (goaway != null) throw new Http2Exception.ConnectionClosed("closed while still sending data");
+                    
                     await streamLock.WaitAsync(); streamLocked = true;
                     if (!sendLocked) { await sendLock.WaitAsync(); sendLocked = true; }
                     status = streams[streamID];
