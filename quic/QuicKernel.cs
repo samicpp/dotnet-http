@@ -224,7 +224,10 @@ public class QuicConfig()
         req.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension([new Oid("1.3.6.1.5.5.7.3.1")], false));
 
         SubjectAlternativeNameBuilder sanBuilder = new();
+        sanBuilder.AddDnsName("*.localhost");
         sanBuilder.AddDnsName("localhost");
+        sanBuilder.AddDnsName("127.0.0.1");
+        sanBuilder.AddDnsName("::1");
         req.CertificateExtensions.Add(sanBuilder.Build());
 
         X509Certificate2 cert = req.CreateSelfSigned(
@@ -235,7 +238,7 @@ public class QuicConfig()
         return new()
         {
             Address = endPoint,
-            Certificate = cert,
+            Certificate = X509CertificateLoader.LoadPkcs12(cert.Export(X509ContentType.Pfx, ""), ""),
         };
     }
     public static QuicConfig SelfSigned(ushort port) => SelfSigned(new IPEndPoint(IPAddress.Any, port));
