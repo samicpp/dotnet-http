@@ -643,6 +643,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     {
                         // await Task.Yield();
                         status = streams[streamID];
+                        if (!status.reset) throw new Http2Exception.StreamClosed("reset while still sending data");
                     }
                     if (goaway != null) throw new Http2Exception.ConnectionClosed("closed while still sending data");
 
@@ -725,6 +726,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     {
                         await Task.Yield();
                         status = streams[streamID];
+                        if (status.reset) throw new Http2Exception.StreamClosed("reset while still sending data");
                     }
                     if (goaway != null) throw new Http2Exception.ConnectionClosed("closed while still sending data");
                     
