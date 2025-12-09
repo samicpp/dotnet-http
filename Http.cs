@@ -2,6 +2,7 @@
 
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 
 public abstract class ADualSocket : IDualSocket
 {
@@ -100,6 +101,24 @@ public abstract class ADualSocket : IDualSocket
         return true;
     }
 
+    public List<byte> ReadUntil(byte stop)
+    {
+        List<byte> total = [];
+        byte[] buff = new byte[1];
+
+        while (true)
+        {
+            int s = Read(buff);
+
+            if (s <= 0) throw new HttpException.ConnectionClosed(null);
+
+            total.Add(buff[0]);
+
+            if (buff[0] == stop) break;
+        }
+
+        return total;
+    }
     public List<byte> ReadUntil(byte[] stop)
     {
         List<byte> total = [];
@@ -140,6 +159,24 @@ public abstract class ADualSocket : IDualSocket
         }
 
     end: return total;
+    }
+    public async Task<List<byte>> ReadUntilAsync(byte stop)
+    {
+        List<byte> total = [];
+        byte[] buff = new byte[1];
+
+        while (true)
+        {
+            int s = await ReadAsync(buff);
+
+            if (s <= 0) throw new HttpException.ConnectionClosed(null);
+            
+            total.Add(buff[0]);
+
+            if (buff[0] == stop) break;
+        }
+
+        return total;
     }
     public async Task<List<byte>> ReadUntilAsync(byte[] stop)
     {

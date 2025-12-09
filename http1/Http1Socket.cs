@@ -13,9 +13,9 @@ public class Http1Client : HttpClient
     public Http1Client()
     {
         Version = "HTTP/1.1";
-        IsValid = true;
     }
     public string ClientVersion = "";
+    public bool MpvComplete = false;
     // public Dictionary<string, List<string>> TrailingHeaders { get; set; } = [];
 }
 
@@ -92,26 +92,31 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
 
     public IHttpClient ReadClient()
     {
-        if (!client.HeadersComplete)
+        if (!client.MpvComplete)
         {
-            var buff = socket.ReadUntil([13, 10, 13, 10], [10, 10]);
-            var text = Encoding.UTF8.GetString([.. buff]);
-            var lines = text.Split("\n");
-            var mpv = lines[0].Split(" ", 3);
-
-            if (mpv.Length < 3) client.IsValid = false;
-
+            var buff = socket.ReadUntil(10);
+            var mpv = Encoding.UTF8.GetString([.. buff]).Trim().Split(" ", 3);
             client.Method = mpv[0];
             client.Path = mpv[1];
-            client.Version = "HTTP/1.1";
             client.ClientVersion = mpv[2];
+            client.MpvComplete = true;
+        }
+        else if (!client.HeadersComplete)
+        {
+            var buff = socket.ReadUntil(10);
+            var header = Encoding.UTF8.GetString([.. buff]).Trim();
 
-            foreach (var header in lines[1..])
+            if (string.IsNullOrWhiteSpace(header)) client.HeadersComplete = true;
+            else
             {
-                if (string.IsNullOrWhiteSpace(header)) continue;
                 var hv = header.Split(":", 2);
 
-                if (hv.Length < 2) { client.IsValid = false; break; }
+                if (hv.Length < 2)
+                {
+                    client.IsValid = false;
+                    client.HeadersComplete = true;
+                    client.BodyComplete = true;
+                }
 
                 var h = hv[0].Trim();
                 var v = hv[1].Trim();
@@ -119,9 +124,8 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
                 if (h.Equals("host", StringComparison.CurrentCultureIgnoreCase)) client.Host = v;
                 else if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
                 else client.Headers[h] = [v];
-            }
 
-            client.HeadersComplete = true;
+            }
         }
         else if (!client.BodyComplete)
         {
@@ -174,26 +178,35 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
     }
     public async Task<IHttpClient> ReadClientAsync()
     {
-        if (!client.HeadersComplete)
+        if (!client.MpvComplete)
         {
-            var buff = await socket.ReadUntilAsync([13, 10, 13, 10], [10, 10]);
-            var text = Encoding.UTF8.GetString([.. buff]);
-            var lines = text.Split("\n");
-            var mpv = lines[0].Split(" ", 3);
-
-            if (mpv.Length < 3) client.IsValid = false;
-
+            var buff = await socket.ReadUntilAsync(10);
+            var mpv = Encoding.UTF8.GetString([.. buff]).Split(" ", 3);
             client.Method = mpv[0];
             client.Path = mpv[1];
-            client.Version = "HTTP/1.1";
             client.ClientVersion = mpv[2];
+            client.MpvComplete = true;
+        }
+        else if (!client.HeadersComplete)
+        {
+            var buff = await socket.ReadUntilAsync(10);
+            var header = Encoding.UTF8.GetString([.. buff]).Trim();
 
-            foreach (var header in lines[1..])
+            if (string.IsNullOrWhiteSpace(header))
             {
-                if (string.IsNullOrWhiteSpace(header)) continue;
+                client.HeadersComplete = true;
+                client.IsValid = true;
+            }
+            else
+            {
                 var hv = header.Split(":", 2);
 
-                if (hv.Length < 2) { client.IsValid = false; break; }
+                if (hv.Length < 2)
+                {
+                    client.IsValid = false;
+                    client.HeadersComplete = true;
+                    client.BodyComplete = true;
+                }
 
                 var h = hv[0].Trim();
                 var v = hv[1].Trim();
@@ -202,8 +215,6 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
                 else if (client.Headers.TryGetValue(h, out List<string>? c)) c.Add(v);
                 else client.Headers[h] = [v];
             }
-
-            client.HeadersComplete = true;
         }
         else if (!client.BodyComplete)
         {

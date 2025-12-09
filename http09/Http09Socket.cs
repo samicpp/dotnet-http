@@ -50,7 +50,7 @@ public class Http09Socket(IDualSocket socket, EndPoint? endPoint = null) : IDual
         if (!client.HeadersComplete)
         {
             var b = socket.ReadUntil([10]);
-            var s = Encoding.UTF8.GetString([.. b]);
+            var s = Encoding.UTF8.GetString([.. b]).Trim();
             var mp = s.Split(" ", 2);
 
             client.Method = (string?)mp.GetValue(0) ?? client.Method;

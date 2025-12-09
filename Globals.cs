@@ -77,6 +77,7 @@ public interface IAsyncSocket : ISocket, IAsyncDisposable
 
     Task<List<byte>> ReadAllAsync();
     Task<byte[]> ReadCertainAsync(int size);
+    Task<List<byte>> ReadUntilAsync(byte stop);
     Task<List<byte>> ReadUntilAsync(byte[] stop);
     Task<List<byte>> ReadUntilAsync(params byte[][] stop);
 }
@@ -92,6 +93,7 @@ public interface ISyncSocket : ISocket, IDisposable
 
     public List<byte> ReadAll();
     byte[] ReadCertain(int size);
+    List<byte> ReadUntil(byte stop);
     List<byte> ReadUntil(byte[] stop);
     List<byte> ReadUntil(params byte[][] stop);
 }
