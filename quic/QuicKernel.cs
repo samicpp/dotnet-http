@@ -9,6 +9,73 @@ using System.Threading.Tasks;
 
 // handles read loop etc., to ensure proper connection management
 // will also support rfc 9221 https://datatracker.ietf.org/doc/html/rfc9221
+
+
+public static class Version
+{
+    public static readonly byte V1 = 1;
+    public static readonly byte V2 = 2;
+
+    public static byte[] GetSalt(byte ver)
+    {
+        return ver switch
+        {
+            1 => [ 0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3, 0x4d, 0x17, 0x9a, 0xe6, 0xa4, 0xc8, 0x0c, 0xad, 0xcc, 0xbb, 0x7f, 0x0a, ], // https://datatracker.ietf.org/doc/html/rfc9001#name-initial-secrets
+            2 => [ 0x0d, 0xed, 0xe3, 0xde, 0xf7, 0x00, 0xa6, 0xdb, 0x81, 0x93, 0x81, 0xbe, 0x6e, 0x26, 0x9d, 0xcb, 0xf9, 0xbd, 0x2e, 0xd9, ], // https://datatracker.ietf.org/doc/html/rfc9369#name-initial-salt
+            _ => throw new ArgumentException("unknown version"),
+        };
+    }
+    static Keys DeriveInitial(byte ver, byte[] dcid)
+    {
+        byte[] ext = HKDF.Extract(HashAlgorithmName.SHA256, dcid, GetSalt(ver));
+        byte[] server = HKDF.Expand(HashAlgorithmName.SHA256, ext, 32, Keys.ServerLabel);
+        byte[] client = HKDF.Expand(HashAlgorithmName.SHA256, ext, 32, Keys.ClientLabel);
+
+        byte[] skey = HKDF.Expand(HashAlgorithmName.SHA256, server, 16, Keys.KeyLabel);
+        byte[] siv = HKDF.Expand(HashAlgorithmName.SHA256, server, 12, Keys.IvLabel);
+        byte[] shp = HKDF.Expand(HashAlgorithmName.SHA256, server, 16, Keys.HpLabel);
+
+        byte[] ckey = HKDF.Expand(HashAlgorithmName.SHA256, client, 16, Keys.KeyLabel);
+        byte[] civ = HKDF.Expand(HashAlgorithmName.SHA256, client, 12, Keys.IvLabel);
+        byte[] chp = HKDF.Expand(HashAlgorithmName.SHA256, client, 16, Keys.HpLabel);
+
+        return new()
+        {
+            Server = server,
+            Client = client,
+
+            ServerKey = skey,
+            ServerIv = siv,
+            ServerHp = shp,
+
+            ClientKey = ckey,
+            ClientIv = civ,
+            ClientHp = chp,
+        };
+    }
+}
+
+public readonly struct Keys()
+{
+    public readonly static byte[] ClientLabel = "client in"u8.ToArray(); // 32
+    public readonly static byte[] ServerLabel = "server in"u8.ToArray(); // 32
+    public readonly static byte[] KeyLabel = "quic key"u8.ToArray();     // 16
+    public readonly static byte[] IvLabel = "quic iv"u8.ToArray();       // 12
+    public readonly static byte[] HpLabel = "quic hp"u8.ToArray();       // 16
+
+
+    public byte[] Server { get; init; } = [];
+    public byte[] Client { get; init; } = [];
+
+    public byte[] ServerKey { get; init; } = [];
+    public byte[] ServerIv { get; init; } = [];
+    public byte[] ServerHp { get; init; } = [];
+
+    public byte[] ClientKey { get; init; } = [];
+    public byte[] ClientIv { get; init; } = [];
+    public byte[] ClientHp { get; init; } = [];
+}
+
 public class QuicKernel(Socket socket, X509Certificate2 cert): IDisposable
 {
     readonly Socket udp = socket;
@@ -74,42 +141,6 @@ public class QuicKernel(Socket socket, X509Certificate2 cert): IDisposable
         return (from, IQuicPacket.ParseAll(ScidLength, bytes));
     }
 
-    
-    static readonly byte[] InitialSalt = [
-        0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3,
-        0x4d, 0x17, 0x9a, 0xe6, 0xa4, 0xc8, 0x0c, 0xad,
-        0xcc, 0xbb, 0x7f, 0x0a
-    ];
-    /*public static (byte[] key, byte[] iv, byte[] hp) DeriveInitialKeys(byte[] dcid)
-    {
-        using HMACSHA256 hmac = new(InitialSalt);
-        byte[] initialSecret = hmac.ComputeHash(dcid);
-
-        return 
-        (
-            HkdfExpandLabel(initialSecret, "client in", 16),
-            HkdfExpandLabel(initialSecret, "quic iv", 12),
-            HkdfExpandLabel(initialSecret, "quic hp", 16)
-        );
-    }*/
-    private static byte[] HkdfExpandLabel(byte[] secret, string label, int length)
-    {
-        byte[] fullLabel = Encoding.ASCII.GetBytes("tls13 " + label);
-        byte[] info = new byte[fullLabel.Length + 4];
-
-        info[0] = (byte)(length >> 8);
-        info[1] = (byte)(length & 0xff);
-
-        info[2] = (byte)fullLabel.Length;
-
-        Buffer.BlockCopy(fullLabel, 0, info, 3, fullLabel.Length);
-
-        info[^1] = 0;
-
-        using var hkdf = new HMACSHA256(secret);
-        byte[] prk = hkdf.ComputeHash(info);
-        return prk[..length];
-    }
 
     public void Incoming()
     {
