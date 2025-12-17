@@ -25,22 +25,23 @@ public static class Version
             _ => throw new ArgumentException("unknown version"),
         };
     }
-    static Keys DeriveInitial(byte ver, byte[] dcid)
+    static InitialKeys DeriveInitial(byte ver, byte[] dcid)
     {
         byte[] ext = HKDF.Extract(HashAlgorithmName.SHA256, dcid, GetSalt(ver));
-        byte[] server = HKDF.Expand(HashAlgorithmName.SHA256, ext, 32, Keys.ServerLabel);
-        byte[] client = HKDF.Expand(HashAlgorithmName.SHA256, ext, 32, Keys.ClientLabel);
+        byte[] server = HKDF.Expand(HashAlgorithmName.SHA256, ext, 32, InitialKeys.ServerLabel);
+        byte[] client = HKDF.Expand(HashAlgorithmName.SHA256, ext, 32, InitialKeys.ClientLabel);
 
-        byte[] skey = HKDF.Expand(HashAlgorithmName.SHA256, server, 16, Keys.KeyLabel);
-        byte[] siv = HKDF.Expand(HashAlgorithmName.SHA256, server, 12, Keys.IvLabel);
-        byte[] shp = HKDF.Expand(HashAlgorithmName.SHA256, server, 16, Keys.HpLabel);
+        byte[] skey = HKDF.Expand(HashAlgorithmName.SHA256, server, 16, InitialKeys.KeyLabel);
+        byte[] siv = HKDF.Expand(HashAlgorithmName.SHA256, server, 12, InitialKeys.IvLabel);
+        byte[] shp = HKDF.Expand(HashAlgorithmName.SHA256, server, 16, InitialKeys.HpLabel);
 
-        byte[] ckey = HKDF.Expand(HashAlgorithmName.SHA256, client, 16, Keys.KeyLabel);
-        byte[] civ = HKDF.Expand(HashAlgorithmName.SHA256, client, 12, Keys.IvLabel);
-        byte[] chp = HKDF.Expand(HashAlgorithmName.SHA256, client, 16, Keys.HpLabel);
+        byte[] ckey = HKDF.Expand(HashAlgorithmName.SHA256, client, 16, InitialKeys.KeyLabel);
+        byte[] civ = HKDF.Expand(HashAlgorithmName.SHA256, client, 12, InitialKeys.IvLabel);
+        byte[] chp = HKDF.Expand(HashAlgorithmName.SHA256, client, 16, InitialKeys.HpLabel);
 
         return new()
         {
+            InitialSecret = ext,
             Server = server,
             Client = client,
 
@@ -55,7 +56,7 @@ public static class Version
     }
 }
 
-public readonly struct Keys()
+public readonly struct InitialKeys()
 {
     public readonly static byte[] ClientLabel = "client in"u8.ToArray(); // 32
     public readonly static byte[] ServerLabel = "server in"u8.ToArray(); // 32
@@ -64,6 +65,7 @@ public readonly struct Keys()
     public readonly static byte[] HpLabel = "quic hp"u8.ToArray();       // 16
 
 
+    public byte[] InitialSecret { get; init; } = [];
     public byte[] Server { get; init; } = [];
     public byte[] Client { get; init; } = [];
 
@@ -79,7 +81,7 @@ public readonly struct Keys()
 public class QuicKernel(Socket socket, X509Certificate2 cert): IDisposable
 {
     readonly Socket udp = socket;
-    readonly byte[] window = new byte[65565];
+    readonly byte[] window = new byte[64*1024];
     public EndPoint? Address { get => udp.LocalEndPoint; }
     readonly X509Certificate2 cert = cert;
     public int ScidLength
