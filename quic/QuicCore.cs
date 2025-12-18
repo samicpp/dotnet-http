@@ -10,47 +10,48 @@ public interface IQuicPacket
     public byte HeaderForm { get; }
     public bool FixedBit { get; } // 17.2.1 // if long and 0 then version negotiation packet
 
-    public static List<IQuicPacket> ParseAll(int dciLength,byte[] bytes)
-    {
-        int pos = 0;
-        List<IQuicPacket> packets = [];
+    // public static List<IQuicPacket> ParseAll(int dciLength,byte[] bytes)
+    // {
+    //     int pos = 0;
+    //     List<IQuicPacket> packets = [];
 
-        while (pos < bytes.Length)
-        {
-            var (stop, packet) = Parse(ref pos, dciLength, bytes);
-            packets.Add(packet);
-            if (stop) break;
-        }
-        return packets;
-    }
-    public static (bool,IQuicPacket) Parse(ref int pos, int dciLength, byte[] bytes)
-    {
-        if ((bytes[pos] & 128) != 0)
-        {
-            bool fixedBit = (bytes[pos] & 0b0100_0000) != 0;
-            QuicPacketType type = (QuicPacketType)((bytes[pos] & 0b0011_0000) >> 4);
+    //     while (pos < bytes.Length)
+    //     {
+    //         var (stop, packet) = Parse(ref pos, dciLength, bytes);
+    //         packets.Add(packet);
+    //         if (stop) break;
+    //     }
+    //     return packets;
+    // }
+    // public static (bool,IQuicPacket) Parse(ref int pos, int dciLength, byte[] bytes)
+    // {
+    //     if ((bytes[pos] & 128) != 0)
+    //     {
+    //         bool fixedBit = (bytes[pos] & 0b0100_0000) != 0;
+    //         QuicPacketType type = (QuicPacketType)((bytes[pos] & 0b0011_0000) >> 4);
 
-            if (!fixedBit) return (false, QuicVersionPacket.Parse(ref pos, bytes));
-            else if (type == QuicPacketType.Initial) return (false, QuicInitialPacket.Parse(ref pos, bytes));
-            else if (type == QuicPacketType.ZeroRtt) return (false, QuicZeroRttPacket.Parse(ref pos, bytes));
-            else if (type == QuicPacketType.Handshake) return (false, QuicHandshakePacket.Parse(ref pos, bytes));
-            else return (true, QuicRetryPacket.Parse(ref pos, bytes));
-        }
-        else
-        {
-            return (true, QuicShortPacket.Parse(ref pos, dciLength, bytes));
-        }
-    }
+    //         if (!fixedBit) return (false, QuicVersionPacket.Parse(ref pos, bytes));
+    //         else if (type == QuicPacketType.Initial) return (false, QuicInitialPacket.Parse(ref pos, bytes));
+    //         else if (type == QuicPacketType.ZeroRtt) return (false, QuicZeroRttPacket.Parse(ref pos, bytes));
+    //         else if (type == QuicPacketType.Handshake) return (false, QuicHandshakePacket.Parse(ref pos, bytes));
+    //         else return (true, QuicRetryPacket.Parse(ref pos, bytes));
+    //     }
+    //     else
+    //     {
+    //         return (true, QuicShortPacket.Parse(ref pos, dciLength, bytes));
+    //     }
+    // }
 }
 
 // 17.2 Table 5 #long-packet-types
 public enum QuicPacketType : byte
 {
-    VersionNegotiation = 0b100,  // 17.2.1
-    Initial = 0b00,              // 17.2.2
-    ZeroRtt = 0b01,              // 17.2.3
-    Handshake = 0b10,            // 17.2.4
-    Retry = 0b11,                // 17.2.5
+    Invalid,
+    VersionNegotiation,   // 17.2.1
+    Initial,              // 17.2.2
+    ZeroRtt,              // 17.2.3
+    Handshake,            // 17.2.4
+    Retry,                // 17.2.5
 }
 
 // 17.2 #name-long-header-packets
