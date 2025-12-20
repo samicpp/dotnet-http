@@ -692,76 +692,7 @@ public class Tests
         
         for(int i = 0; i < 10; i++)
         {
-            var (_, packs) = await quic.ReceiveAsync();
-            foreach (var pack in packs)
-            {
-                string dump = "";
-                dump+=pack.GetType().FullName;
-                dump+="{\n";
-                dump+=$"    HeaderForm: {(pack.HeaderForm != 0 ? "Long" : "Short")},\n";
-
-                if (pack is IQuicLongPacket packet)
-                {
-
-                    dump+=$"    Type: {packet.Type},\n";
-                    dump+=$"    TypeSpecific: {packet.TypeSpecific},\n";
-                    dump+=$"    Version: {packet.Version},\n";
-                    dump+=$"    DciLength: {packet.DciLength},\n";
-                    dump+=$"    Dci: [ "; foreach (var b in packet.Dci) dump += $"{b}, "; dump += "],\n";
-                    dump+=$"    SciLength: {packet.SciLength},\n";
-                    dump+=$"    Sci: [ "; foreach (var b in packet.Sci) dump += $"{b}, "; dump += "],\n";
-                    // dump+=$"    TsPayload: [ "; foreach (var b in packet.TsPayload) dump += $"{b}, "; dump += "],\n";
-                    if (packet is QuicVersionPacket v) dump += $"    SupportedVersion: {v.SupportedVersion}\n";
-                    else if (packet is QuicInitialPacket s)
-                    {
-                        dump += $"    TokenLength: {s.TokenLength}\n";
-                        dump += $"    Token: [ "; foreach (var b in s.Token) dump += $"{b}, "; dump += "],\n";
-                        dump += $"    Length: {s.Length}\n";
-                        dump += $"    PacketNumberLength: {s.PacketNumberLength}\n";
-                        dump += $"    Payload: [ "; foreach (var b in s.PnPayload) dump += $"{b}, "; dump += "],\n";
-                    }
-                    else if (packet is QuicZeroRttPacket z)
-                    {
-                        dump += $"    Length: {z.Length}\n";
-                        dump += $"    PacketNumberLength: {z.PacketNumberLength}\n";
-                        dump += $"    Payload: [ "; foreach (var b in z.PnPayload) dump += $"{b}, "; dump += "],\n";
-                    }
-                    else if (packet is QuicHandshakePacket h)
-                    {
-                        dump += $"    Length: {h.Length}\n";
-                        dump += $"    PacketNumberLength: {h.PacketNumberLength}\n";
-                        dump += $"    Payload: [ "; foreach (var b in h.PnPayload) dump += $"{b}, "; dump += "],\n";
-                    }
-                    else if (packet is QuicRetryPacket r)
-                    {
-                        dump += $"    RetryToken: [ "; foreach (var b in r.RetryToken) dump += $"{b}, "; dump += "],\n";
-                        dump += $"    RetryIntegrityTag: [ "; foreach (var b in r.RetryIntegrityTag) dump += $"{b}, "; dump += "],\n";
-                    }
-
-                    
-                    // List<IQuicFrame> frames = [];
-                    // string fdump = "frames = [ ";
-                    
-                    // if (packet is QuicInitialPacket ss) frames = IQuicFrame.ParseAll(ss.Payload);
-                    // if (packet is QuicZeroRttPacket zz) frames = IQuicFrame.ParseAll(zz.Payload);
-                    // if (packet is QuicHandshakePacket hh) frames = IQuicFrame.ParseAll(hh.Payload);
-
-                    // foreach (var frame in frames)
-                    // {
-                    //     fdump += $"{frame.Type}, ";
-                    // }
-
-                    // fdump+="]\n";
-                    // Console.WriteLine(fdump);
-                }
-                else if (pack is QuicShortPacket shor)
-                {
-                    Console.WriteLine("short packet");
-                }
-
-                dump+="}";
-                Console.WriteLine(dump);
-            }
+            ;
         }
     }
 }

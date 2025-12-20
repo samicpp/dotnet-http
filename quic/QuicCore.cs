@@ -148,7 +148,7 @@ public readonly struct QuicInitialPacket() : IQuicLongPacket
     public long TokenLength { get; init; } // varint
     public byte[] Token { get; init; } = [];
     public long Length { get; init; } // varint
-    // public uint PacketNumber { get; init; }
+    public uint PacketNumber { get; init; }
     public byte[] PnPayload { get; init; } = [];
 
     public static QuicInitialPacket Parse(ref int pos, byte[] bytes)
@@ -167,8 +167,8 @@ public readonly struct QuicInitialPacket() : IQuicLongPacket
         byte[] token = bytes[pos..(pos + (int)tlen)];
         pos += (int)tlen;
         long length = IQuicFrame.VarintFrom(ref pos, bytes);
-        // uint pn = 0;
-        // for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[pos++] << (8 * (pnLength - 1 - i));
+        uint pn = 0;
+        for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[pos++] << (8 * (pnLength - 1 - i));
         byte[] payload = bytes[pos..(pos - pnLength + (int)length)];
         pos += (int)length;
 
@@ -186,7 +186,7 @@ public readonly struct QuicInitialPacket() : IQuicLongPacket
             TokenLength = tlen,
             Token = token,
             Length = length,
-            // PacketNumber = pn,
+            PacketNumber = pn,
             PnPayload = payload,
         };
     }
@@ -290,7 +290,7 @@ public readonly struct QuicHandshakePacket() : IQuicLongPacket
     public byte SciLength { get; init; }
     public byte[] Sci { get; init; } = [];
     public long Length { get; init; } // varint
-    // public uint PacketNumber { get; init; }
+    public uint PacketNumber { get; init; }
     public byte[] PnPayload { get; init; } = [];
 
     public static QuicHandshakePacket Parse(ref int pos, byte[] bytes)
@@ -306,9 +306,9 @@ public readonly struct QuicHandshakePacket() : IQuicLongPacket
 
         byte pnLength = (byte)((typeSpecific & 0b0011) + 1);
         long length = IQuicFrame.VarintFrom(ref pos, bytes);
-        // uint pn = 0;
-        // for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[pos + i] << (8 * (pnLength - 1 - i));
-        // pos += pnLength;
+        uint pn = 0;
+        for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[pos + i] << (8 * (pnLength - 1 - i));
+        pos += pnLength;
         byte[] payload = bytes[pos..(int)(pos + length)];
         pos += (int)length;
 
@@ -323,7 +323,7 @@ public readonly struct QuicHandshakePacket() : IQuicLongPacket
             Sci = sci,
 
             Length = length,
-            // PacketNumber = pn,
+            PacketNumber = pn,
             PnPayload = payload,
         };
     }
@@ -402,7 +402,7 @@ public readonly struct QuicShortPacket(): IQuicPacket
     public bool KeyPhase { get; init; }
     public byte PacketNumberLength { get; init; }
     public byte[] Dci { get; init; } = []; // Destination Connection ID
-    // public uint PacketNumber { get; init; }
+    public uint PacketNumber { get; init; }
     public byte[] PnPayload { get; init; } = [];
 
     public static QuicShortPacket Parse(ref int pos, int DciLength, byte[] bytes)
@@ -415,9 +415,9 @@ public readonly struct QuicShortPacket(): IQuicPacket
         int pnLength = (bytes[pos++] & 0b0000_0011) + 1;
         byte[] dci = bytes[pos..(pos + DciLength)];
         pos += DciLength;
-        // uint pn = 0;
-        // for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[i + pos] << (8 * (pnLength - 1 - i));
-        // pos += pnLength;
+        uint pn = 0;
+        for (int i = 0; i < pnLength; i++) pn |= (uint)bytes[i + pos] << (8 * (pnLength - 1 - i));
+        pos += pnLength;
 
         byte[] payload = bytes[pos..];
 
@@ -429,7 +429,7 @@ public readonly struct QuicShortPacket(): IQuicPacket
             KeyPhase = keyphase,
             PacketNumberLength = (byte)pnLength,
             Dci = dci,
-            // PacketNumber = pn,
+            PacketNumber = pn,
             PnPayload = payload,
         };
     }

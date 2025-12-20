@@ -131,6 +131,23 @@ public readonly struct InitialKeys()
         }
         else throw new Exception("irregular version");
     }
+    public static byte[] DeriveHp(byte[] sample, InitialKeys keys)
+    {
+        byte[] block = new byte[16];
+
+        using var aes = Aes.Create();
+        aes.Mode = CipherMode.ECB;
+        aes.Padding = PaddingMode.None;
+        aes.Key = keys.ClientHp;
+
+        using var enc = aes.CreateEncryptor();
+        enc.TransformBlock(
+            sample, 0, 16,
+            block, 0
+        );
+
+        return block;
+    }
 }
 
 public class QuicKernel(Socket socket, X509Certificate2 cert): IDisposable
@@ -214,7 +231,7 @@ public class QuicKernel(Socket socket, X509Certificate2 cert): IDisposable
             if ((bytes[pos] & 128) != 0) // headerform bit
             {
                 bool fixedBit = (bytes[pos] & 0b0100_0000) != 0;
-                byte typeSpecific = (byte)(bytes[pos++] & 0b1111);
+                // byte typeSpecific = (byte)(bytes[pos++] & 0b1111);
                 uint version = (uint)bytes[pos++] << 24 | (uint)bytes[pos++] << 16 | (uint)bytes[pos++] << 8 | bytes[pos++];
                 byte dcil = bytes[pos++];
                 byte[] dcid = bytes[pos..(pos + dcil)]; pos += dcil;
@@ -236,18 +253,48 @@ public class QuicKernel(Socket socket, X509Certificate2 cert): IDisposable
                 }
                 else if (type == QuicPacketType.Initial)
                 {
+                    long tlen = IQuicFrame.VarintFrom(ref pos, bytes);
+                    // Span<byte> token = bytes.AsSpan(pos..(pos + (int)tlen));
+                    pos += (int)tlen;
+                    long length = IQuicFrame.VarintFrom(ref pos, bytes);
+                    Span<byte> payload = bytes.AsSpan(pos..(pos + (int)length));
+                    pos += (int)length;
+
                     InitialKeys keys = InitialKeys.Derive(ver: ver, dcid: dcid);
+                    byte[] block = InitialKeys.DeriveHp(payload[4..19].ToArray(), keys);
+
+                    Span<byte> mask = block.AsSpan(0..5);
+
+                    bytes[bpos] ^= (byte)(mask[0] & 0x0f);
+                    byte pnLength = (byte)((bytes[bpos] & 0b0011) + 1);
+
+
+                    for (int i = 0; i < pnLength; i++) payload[i] ^= mask[(i % 4) + 1];
+
+                    uint pn = 0;
+                    for (int i = 0; i < pnLength; i++) pn |= (uint)payload[pos++] << (8 * (pnLength - 1 - i));
+
+                    byte[] nonce = [..keys.ClientIv];
+                    for (int i = 0; pnLength != 0; i++)
+                    {
+                        nonce[11 - i] ^= (byte)(pn & 0xff);
+                        pn >>= 8;
+                    }
                     
+                    
+
                     // decrypt / unmask
 
                     QuicInitialPacket initial = QuicInitialPacket.Parse(ref bpos, bytes);
                 }
                 else if (type == QuicPacketType.ZeroRtt)
                 {
+                    // decrypt
                     QuicZeroRttPacket zero = QuicZeroRttPacket.Parse(ref bpos, bytes);
                 }
                 else if (type == QuicPacketType.Handshake)
                 {
+                    // decrypt
                     QuicHandshakePacket handshake = QuicHandshakePacket.Parse(ref bpos, bytes);
                 }
                 else if (type == QuicPacketType.Retry)
@@ -256,11 +303,13 @@ public class QuicKernel(Socket socket, X509Certificate2 cert): IDisposable
                     done = true;
                     break;
                 }
-                
+
+                pos = bpos;
             }
             else
             {
                 // shortpacket
+                // decrypt
                 QuicShortPacket shor = QuicShortPacket.Parse(ref pos, ScidLength, bytes);
                 done = true;
                 break;
