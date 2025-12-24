@@ -287,9 +287,10 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
     {
         int? opened = null;
         handleLock.Wait();
-        streamLock.Wait();
+        bool streamLocked = false;
         try
         {
+            recv.Writer.TryWrite(frame.type);
             Http2Status? stream;
             switch (frame.type)
             {
@@ -298,6 +299,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     break;
 
                 case Http2FrameType.Data:
+                    streamLock.WaitAsync(); streamLocked = true;
                     if (streams.TryGetValue(frame.streamID, out stream) && !stream.end_stream)
                     {
                         stream.body.AddRange(frame.Payload);
@@ -314,9 +316,9 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     break;
 
                 case Http2FrameType.Headers:
-                    if (streams.TryGetValue(frame.streamID, out stream) && !stream.end_stream)
+                    streamLock.Wait(); streamLocked = true;
+                    if (streams.TryGetValue(frame.streamID, out stream))
                     {
-                        // throw new Http2Exception.ProtocolError("Header frame sent for existing stream");
                         stream.head.Clear();
                         stream.head.AddRange(frame.Payload);
 
@@ -344,6 +346,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     break;
 
                 case Http2FrameType.Continuation:
+                    streamLock.Wait(); streamLocked = true;
                     if (streams.TryGetValue(frame.streamID, out stream) && !stream.end_headers && !stream.end_stream)
                     {
                         stream.head.AddRange(frame.Payload);
@@ -381,6 +384,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                 case Http2FrameType.Goaway: goaway = frame; break;
 
                 case Http2FrameType.RstStream:
+                    streamLock.Wait(); streamLocked = true;
                     if (streams.TryGetValue(frame.streamID, out stream))
                     {
                         stream.reset = true;
@@ -394,16 +398,20 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
 
                 case Http2FrameType.WindowUpdate:
                     var pay = frame.Payload;
+                    if (pay.Length != 4) break;
                     int size = pay[0] << 24 | pay[1] << 16 | pay[2] << 8 | pay[3];
 
                     if (frame.streamID == 0)
                     {
+                        windowLock.Wait();
                         window += size;
+                        windowLock.Release();
                     }
                     else if (streams.TryGetValue(frame.streamID, out stream))
                     {
+                        windowLock.Wait();
                         stream.window += size;
-                        streams[frame.streamID] = stream;
+                        windowLock.Release();
                     }
                     else
                     {
@@ -417,7 +425,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         finally
         {
             handleLock.Release();
-            streamLock.Release();
+            if (streamLocked) streamLock.Release();
         }
 
         return opened;
@@ -429,7 +437,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         bool streamLocked = false;
         try
         {
-            await recv.Writer.WriteAsync(frame.type);
+            recv.Writer.TryWrite(frame.type);
             Http2Status? stream;
             switch (frame.type)
             {
@@ -770,7 +778,7 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                     
                     while (window <= 0 || status.window <= 0 || goaway != null)
                     {
-                        if (await recv.Reader.ReadAsync() == Http2FrameType.WindowUpdate) break;
+                        await recv.Reader.ReadAsync();
                         // await Task.Yield();
                         // status = streams[streamID];
                         if (status.reset) throw new Http2Exception.StreamClosed("reset while still sending data");
