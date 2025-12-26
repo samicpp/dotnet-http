@@ -25,9 +25,9 @@ In the future I might make another library that uses this one to support a ready
 
 ## TODO::Improvements
 - [x] improve compressor
-- [ ] support use of `Stream` instead of `byte[]`
+- [x] support use of `Stream` instead of `byte[]`
 - [x] support trailing headers
-- [x] ~~support HTTP/1.1 pipelining~~ you can construct a new socket with the same stream
+- [ ] support HTTP/1.1 
 - [ ] add comments/documentation
 
 ## Examples

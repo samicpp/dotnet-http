@@ -21,24 +21,30 @@ public interface IHttpSocket
 public interface ISyncHttpSocket : IHttpSocket, IDisposable
 {
     IHttpClient ReadClient();
+    WebSocket.WebSocket WebSocket(); // might remove later, HTTP/1.1 only
+
     void Close();
     void Close(string text);
-    void Close(byte[] bytes);
-    void Write(string text);
-    void Write(byte[] bytes);
-    WebSocket.WebSocket WebSocket();
+    void Close(Span<byte> bytes);
+    void Close(Stream stream);
 
-    // new ISyncSocket Conn { get; }
+    void Write(string text);
+    void Write(Span<byte> bytes);
+    // void Write(Stream stream);
 }
 public interface IAsyncHttpSocket: IHttpSocket, IAsyncDisposable
 {
     Task<IHttpClient> ReadClientAsync();
+    Task<WebSocket.WebSocket> WebSocketAsync();
+
     Task CloseAsync();
     Task CloseAsync(string text);
-    Task CloseAsync(byte[] bytes);
+    Task CloseAsync(Memory<byte> bytes);
+    Task CloseAsync(Stream stream);
+
     Task WriteAsync(string text);
-    Task WriteAsync(byte[] bytes);
-    Task<WebSocket.WebSocket> WebSocketAsync();
+    Task WriteAsync(Memory<byte> bytes);
+    // Task WriteAsync(Stream stream);
 
     // new IAsyncSocket Conn { get; }
 }
@@ -72,6 +78,7 @@ public interface IAsyncSocket : ISocket, IAsyncDisposable
     // ValueTask DisposeAsync();
     Task<int> ReadAsync(Memory<byte> bytes);
     Task<int> ReadAsync(byte[] bytes, int offset, int size);
+    Task WriteAsync(Stream stream);
     Task WriteAsync(Memory<byte> bytes);
     Task WriteAsync(byte[] bytes, int offset, int size);
 
@@ -88,6 +95,7 @@ public interface ISyncSocket : ISocket, IDisposable
     // void Dispose();
     int Read(Span<byte> bytes);
     int Read(byte[] bytes, int offset, int size);
+    void Write(Stream stream);
     void Write(Span<byte> bytes);
     void Write(byte[] bytes, int offset, int size);
 

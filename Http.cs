@@ -14,9 +14,11 @@ public abstract class ADualSocket : IDualSocket
     public int Read(byte[] bytes, int offset, int size) => Stream.Read(bytes, offset, size);
     public void Write(Span<byte> bytes) => Stream.Write(bytes);
     public void Write(byte[] bytes, int offset, int size) => Stream.Write(bytes, offset, size);
+    public void Write(Stream stream) => stream.CopyTo(Stream);
     public async Task<int> ReadAsync(Memory<byte> bytes) => await Stream.ReadAsync(bytes);
     public async Task<int> ReadAsync(byte[] bytes, int offset, int size) => await Stream.ReadAsync(bytes, offset, size);
     public async Task WriteAsync(Memory<byte> bytes) => await Stream.WriteAsync(bytes);
+    public async Task WriteAsync(Stream stream) => await stream.CopyToAsync(Stream);
     public async Task WriteAsync(byte[] bytes, int offset, int size) => await Stream.WriteAsync(bytes, offset, size);
 
     public void Flush() => Stream.Flush();

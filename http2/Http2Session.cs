@@ -634,7 +634,6 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
         bool streamLocked = false;
         bool windowLocked = false;
         List<byte> toSend = [];
-
         try
         {
             streamLock.Wait(); streamLocked = true;
@@ -660,49 +659,120 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
             }
 
             int index = 0;
+            int mfs = settings.max_frame_size ?? 16384;
+            int min = Math.Min(mfs, Math.Min(window, status.window));
 
-            while (payload.Length - index > 0)
+            while (payload.Length - index > min)
             {
-                var mfs = settings.max_frame_size ?? 16384;
-                var min = Math.Min(mfs, Math.Min(window, status.window));
-                if (payload.Length - index <= min) break;
-
-                windowLock.Wait(); windowLocked = true;
-                window -= min;
-                status.window -= min;
-                windowLock.Release(); windowLocked = false;
-
-                if (min > 0)
+                int maxSend = Math.Min(window, status.window);
+                
+                if (maxSend > 0)
                 {
-                    var b = Http2Frame.Create(streamID, 0, 0, [], payload.AsSpan(index..(index + min)), []);
-                    toSend.AddRange(b);
-                }
+                    int max = Math.Min(maxSend, payload.Length - index);
 
-                index += min;
+                    windowLock.Wait(); windowLocked = true;
+                    window -= max;
+                    status.window -= max;
+                    windowLock.Release(); windowLocked = false;
+                    
+                    int chunks = max / mfs;
+                    int remain = max % mfs;
 
-                if (window <= 0 || status.window <= 0)
-                {
+                    for(int i = 0; i < chunks; i++)
+                    {
+                        toSend.AddRange(Http2Frame.Create(streamID, 0, 0, [], payload.AsSpan(index, mfs), []));
+                        index += mfs;
+                    }
+
+                    toSend.AddRange(Http2Frame.Create(streamID, 0, 0, [], payload.AsSpan(index, remain), []));
+                    index += remain;
+
                     Write(toSend.ToArray());
                     toSend.Clear();
-                    
-                    while (window <= 0 || status.window <= 0 || goaway != null)
-                    {
-                        if (recv.Reader.TryRead(out var t) && t == Http2FrameType.WindowUpdate) break;
-                        if (status.reset) throw new Http2Exception.StreamClosed("reset while still sending data");
-                    }
-                    if (goaway != null) throw new Http2Exception.ConnectionClosed("closed while still sending data");
                 }
+
+                while(!recv.Reader.TryRead(out var t)) { }
+                if (status.reset) throw new Http2Exception.StreamClosed("reset while still sending data");
+                if (goaway != null) throw new Http2Exception.ConnectionClosed("closed while still sending data");
+                min = Math.Min(mfs, Math.Min(window, status.window));
             }
 
             int rem = payload.Length - index;
+
             windowLock.Wait(); windowLocked = true;
             window -= rem;
             status.window -= rem;
             windowLock.Release(); windowLocked = false;
-            toSend.AddRange(Http2Frame.Create(streamID, 0, end ? (byte)1 : (byte)0, [], payload.AsSpan(index..), []));
 
-            Write(toSend.ToArray());
-            toSend.Clear();
+            if (end || rem != 0) SendFrame(streamID, 0, end ? (byte)1 : (byte)0, [], payload[index..], []);
+        }
+        finally
+        {
+            if (streamLocked) streamLock.Release();
+            if (windowLocked) windowLock.Release();
+        }
+    }
+    public void SendData(int streamID, bool end, Stream stream)
+    {
+        bool streamLocked = false;
+        bool windowLocked = false;
+        List<byte> toSend = [];
+        try
+        {
+            streamLock.Wait(); streamLocked = true;
+            Http2Status status;
+            if (streams.TryGetValue(streamID, out status!) && status != null)
+            {
+                if (!status.self_end_headers) throw new Http2Exception.HeadersNotSent("");
+                else if (status.self_end_stream) throw new Http2Exception.StreamClosed("");
+                status.self_end_stream = end;
+            }
+            else
+            {
+                throw new Http2Exception.StreamDoesntExist("");
+            }
+            streamLock.Release(); streamLocked = false;
+
+
+            int read = 1;
+            int mfs = settings.max_frame_size ?? 16384;
+
+            while (read > 0)
+            {
+                int min = Math.Min(mfs, Math.Min(window, status.window));
+                byte[] chunk = new byte[min];
+                
+                if (min <= 0)
+                {
+                    Write(toSend.ToArray());
+                    toSend.Clear();
+                    while(!recv.Reader.TryRead(out var t)) { }
+                }
+                else
+                {
+                    read = stream.Read(chunk);
+
+                    if (read > 0)
+                    {
+                        windowLock.Wait(); windowLocked = true;
+                        window -= read;
+                        status.window -= read;
+                        windowLock.Release(); windowLocked = false;
+
+                        toSend.AddRange(Http2Frame.Create(streamID, 0, 0, [], chunk.AsSpan(..read), []));
+                    }
+                    else if (end) 
+                    {
+                        toSend.AddRange(Http2Frame.Create(streamID, 0, 1, [], [], []));
+                        Write(toSend.ToArray());
+                        toSend.Clear();
+                    }
+                }
+
+                if (status.reset) throw new Http2Exception.StreamClosed("reset while still sending data");
+                if (goaway != null) throw new Http2Exception.ConnectionClosed("closed while still sending data");
+                min = Math.Min(mfs, Math.Min(window, status.window));
+            }
         }
         finally
         {
@@ -712,10 +782,6 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
     }
     public async Task SendDataAsync(int streamID, bool end, byte[] payload)
     {
-        // Http2Status stream;
-        // await sendLock.WaitAsync(); bool sendLocked = true;
-        // await streamLock.WaitAsync(); bool streamLocked = true;
-        // readLock.Wait(); bool readLocked = true;
         bool streamLocked = false;
         bool windowLocked = false;
         List<byte> toSend = [];
@@ -728,8 +794,6 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                 if (!status.self_end_headers) throw new Http2Exception.HeadersNotSent("");
                 else if (status.self_end_stream) throw new Http2Exception.StreamClosed("");
                 status.self_end_stream = end;
-                // stream = status;
-                // streams[streamID] = status;
             }
             else
             {
@@ -746,68 +810,123 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
             }
 
             int index = 0;
+            int mfs = settings.max_frame_size ?? 16384;
+            int min = Math.Min(mfs, Math.Min(window, status.window));
 
-            while (payload.Length - index > 0)
+            while (payload.Length - index > min)
             {
-                var mfs = settings.max_frame_size ?? 16384;
-                var min = Math.Min(mfs, Math.Min(window, status.window));
-                if (payload.Length - index <= min) break;
-
-                await windowLock.WaitAsync(); windowLocked = true;
-                window -= min;
-                status.window -= min;
-                windowLock.Release(); windowLocked = false;
-
-                if (min > 0)
+                int maxSend = Math.Min(window, status.window);
+                
+                if (maxSend > 0)
                 {
-                    var b = Http2Frame.Create(streamID, 0, 0, [], payload.AsSpan(index..(index + min)), []);
-                    toSend.AddRange(b);
-                    // await SendFrameAsync(streamID, 0, 0, [], payload[index..(index + min)], []);
-                }
+                    int max = Math.Min(maxSend, payload.Length - index);
 
-                index += min;
-                // streams[streamID] = status;
+                    await windowLock.WaitAsync(); windowLocked = true;
+                    window -= max;
+                    status.window -= max;
+                    windowLock.Release(); windowLocked = false;
+                    
+                    int chunks = max / mfs;
+                    int remain = max % mfs;
 
-                if (window <= 0 || status.window <= 0)
-                {
-                    // streamLock.Release(); streamLocked = false;
-                    // sendLock.Release(); sendLocked = false;
+                    for(int i = 0; i < chunks; i++)
+                    {
+                        toSend.AddRange(Http2Frame.Create(streamID, 0, 0, [], payload.AsSpan(index, mfs), []));
+                        index += mfs;
+                    }
+
+                    toSend.AddRange(Http2Frame.Create(streamID, 0, 0, [], payload.AsSpan(index, remain), []));
+                    index += remain;
 
                     await WriteAsync(toSend.ToArray());
                     toSend.Clear();
-                    
-                    while (window <= 0 || status.window <= 0 || goaway != null)
-                    {
-                        await recv.Reader.ReadAsync();
-                        // await Task.Yield();
-                        // status = streams[streamID];
-                        if (status.reset) throw new Http2Exception.StreamClosed("reset while still sending data");
-                    }
-                    if (goaway != null) throw new Http2Exception.ConnectionClosed("closed while still sending data");
-                    
-                    // await streamLock.WaitAsync(); streamLocked = true;
-                    // if (!sendLocked) { await sendLock.WaitAsync(); sendLocked = true; }
-                    // status = streams[streamID];
                 }
 
-                // min = Math.Min(settings.max_frame_size ?? 16384, Math.Min(window, status.window));
+                await recv.Reader.ReadAsync();
+                if (status.reset) throw new Http2Exception.StreamClosed("reset while still sending data");
+                if (goaway != null) throw new Http2Exception.ConnectionClosed("closed while still sending data");
+                min = Math.Min(mfs, Math.Min(window, status.window));
             }
 
             int rem = payload.Length - index;
+
             await windowLock.WaitAsync(); windowLocked = true;
             window -= rem;
             status.window -= rem;
             windowLock.Release(); windowLocked = false;
-            toSend.AddRange(Http2Frame.Create(streamID, 0, end ? (byte)1 : (byte)0, [], payload.AsSpan(index..), []));
-            // streams[streamID] = status;
 
-            await WriteAsync(toSend.ToArray());
-            toSend.Clear();
+            if (end || rem != 0) await SendFrameAsync(streamID, 0, end ? (byte)1 : (byte)0, [], payload[index..], []);
         }
         finally
         {
-            // if (readLocked) readLock.Release();
-            // if (sendLocked) sendLock.Release();
+            if (streamLocked) streamLock.Release();
+            if (windowLocked) windowLock.Release();
+        }
+    }
+    public async Task SendDataAsync(int streamID, bool end, Stream stream)
+    {
+        bool streamLocked = false;
+        bool windowLocked = false;
+        List<byte> toSend = [];
+        try
+        {
+            await streamLock.WaitAsync(); streamLocked = true;
+            Http2Status status;
+            if (streams.TryGetValue(streamID, out status!) && status != null)
+            {
+                if (!status.self_end_headers) throw new Http2Exception.HeadersNotSent("");
+                else if (status.self_end_stream) throw new Http2Exception.StreamClosed("");
+                status.self_end_stream = end;
+            }
+            else
+            {
+                throw new Http2Exception.StreamDoesntExist("");
+            }
+            streamLock.Release(); streamLocked = false;
+
+
+            int read = 1;
+            int mfs = settings.max_frame_size ?? 16384;
+
+            while (read > 0)
+            {
+                int min = Math.Min(mfs, Math.Min(window, status.window));
+                byte[] chunk = new byte[min];
+                
+                if (min <= 0)
+                {
+                    await WriteAsync(toSend.ToArray());
+                    toSend.Clear();
+                    await recv.Reader.ReadAsync();
+                }
+                else
+                {
+                    read = await stream.ReadAsync(chunk);
+
+                    if (read > 0)
+                    {
+                        await windowLock.WaitAsync(); windowLocked = true;
+                        window -= read;
+                        status.window -= read;
+                        windowLock.Release(); windowLocked = false;
+
+                        toSend.AddRange(Http2Frame.Create(streamID, 0, 0, [], chunk.AsSpan(..read), []));
+                    }
+                    else if (end)
+                    {
+                        toSend.AddRange(Http2Frame.Create(streamID, 0, 1, [], [], []));
+                        await WriteAsync(toSend.ToArray());
+                        toSend.Clear();
+                    }
+                }
+
+                if (status.reset) throw new Http2Exception.StreamClosed("reset while still sending data");
+                if (goaway != null) throw new Http2Exception.ConnectionClosed("closed while still sending data");
+                min = Math.Min(mfs, Math.Min(window, status.window));
+            }
+        }
+        finally
+        {
             if (streamLocked) streamLock.Release();
             if (windowLocked) windowLock.Release();
         }

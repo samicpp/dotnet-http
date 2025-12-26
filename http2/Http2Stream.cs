@@ -152,7 +152,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         else conn.SendData(streamID, true, []);
     }
     public void Close(string data) => Close(Encoding.UTF8.GetBytes(data));
-    public void Close(byte[] data)
+    public void Close(Span<byte> data)
     {
         if (!IsClosed && !HeadSent)
         {
@@ -179,6 +179,33 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
             IsClosed = true;
         }
     }
+    public void Close(Stream stream)
+    {
+        if (!IsClosed && !HeadSent)
+        {
+            var compressed = compressor.Finish(stream);
+            headers["content-length"] = [compressed.Length.ToString()];
+            SendHead(false);
+            conn.SendData(streamID, true, compressed);
+            IsClosed = true;
+        }
+        else if (!IsClosed)
+        {
+            var compressed = compressor.Finish(stream);
+            if (headers.Count == 0)
+            {
+                conn.SendData(streamID, true, compressed);
+            }
+            else
+            {
+                List<HeaderEntry> head = [];
+                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), cache.Contains(header)));
+                conn.SendData(streamID, false, compressed);
+                conn.SendHeaders(streamID, true, head.ToArray());
+            }
+            IsClosed = true;
+        }
+    }
 
     public async Task CloseAsync()
     {
@@ -186,7 +213,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         else await conn.SendDataAsync(streamID, true, []);
     }
     public async Task CloseAsync(string data) => await CloseAsync(Encoding.UTF8.GetBytes(data));
-    public async Task CloseAsync(byte[] data)
+    public async Task CloseAsync(Memory<byte> data)
     {
         if (!IsClosed && !HeadSent)
         {
@@ -213,9 +240,36 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
             IsClosed = true;
         }
     }
+    public async Task CloseAsync(Stream stream)
+    {
+        if (!IsClosed && !HeadSent)
+        {
+            var compressed = await compressor.FinishAsync(stream);
+            headers["content-length"] = [compressed.Length.ToString()];
+            SendHead(false);
+            await conn.SendDataAsync(streamID, true, compressed);
+            IsClosed = true;
+        }
+        else if (!IsClosed)
+        {
+            var compressed = await compressor.FinishAsync(stream);
+            if (headers.Count == 0)
+            {
+                await conn.SendDataAsync(streamID, true, compressed);
+            }
+            else
+            {
+                List<HeaderEntry> head = [];
+                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), cache.Contains(header)));
+                await conn.SendDataAsync(streamID, false, compressed);
+                await conn.SendHeadersAsync(streamID, true, head.ToArray());
+            }
+            IsClosed = true;
+        }
+    }
 
     public void Write(string data) => Write(Encoding.UTF8.GetBytes(data));
-    public void Write(byte[] data)
+    public void Write(Span<byte> data)
     {
         if (!IsClosed)
         {
@@ -230,7 +284,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     }
 
     public async Task WriteAsync(string data) => await WriteAsync(Encoding.UTF8.GetBytes(data));
-    public async Task WriteAsync(byte[] data)
+    public async Task WriteAsync(Memory<byte> data)
     {
         if (!IsClosed)
         {

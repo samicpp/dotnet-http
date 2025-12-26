@@ -294,7 +294,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
 
     public void Close() => Close([]);
     public void Close(string text) => Close(Encoding.UTF8.GetBytes(text));
-    public void Close(byte[] bytes)
+    public void Close(Span<byte> bytes)
     {
         if (!IsClosed && !HeadSent)
         {
@@ -324,10 +324,41 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
             socket.Write(crlf);
         }
     }
+    public void Close(Stream bytes)
+    {
+        if (!bytes.CanSeek) throw new ArgumentException("cannot use stream type");
+        if (!IsClosed && !HeadSent)
+        {
+            var compressed = compressor.Finish(bytes);
+            headers["Content-Length"] = [compressed.Length.ToString()];
+            SendHead();
+            socket.Write(compressed);
+            IsClosed = true;
+        }
+        else if (!IsClosed)
+        {
+            var compressed = compressor.Finish(bytes);
+            // TODO: add support for sending final headers
+            byte[] term = [13, 10, 48, 13, 10, 13, 10];
+            socket.Write(Encoding.UTF8.GetBytes(compressed.Length.ToString("X") + "\r\n"));
+            socket.Write(compressed);
+            socket.Write(term);
 
-    public async Task CloseAsync() => await CloseAsync([]);
+            if (headers.Count != 0)
+            {
+                string text = "";
+                foreach (var (h, vs) in headers) foreach (var v in vs) text += $"{h}: {v}\r\n";
+                socket.Write(Encoding.UTF8.GetBytes(text));
+            }
+
+            byte[] crlf = [13, 10];
+            socket.Write(crlf);
+        }
+    }
+
+    public async Task CloseAsync() => await CloseAsync(Memory<byte>.Empty);
     public async Task CloseAsync(string text) => await CloseAsync(Encoding.UTF8.GetBytes(text));
-    public async Task CloseAsync(byte[] bytes)
+    public async Task CloseAsync(Memory<byte> bytes)
     {
         if (!IsClosed && !HeadSent)
         {
@@ -357,9 +388,40 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
             await socket.WriteAsync(crlf);
         }
     }
+    public async Task CloseAsync(Stream bytes)
+    {
+        if (!bytes.CanSeek) throw new ArgumentException("cannot use stream type");
+        if (!IsClosed && !HeadSent)
+        {
+            var compressed = await compressor.FinishAsync(bytes);
+            headers["Content-Length"] = [compressed.Length.ToString()];
+            await SendHeadAsync();
+            await socket.WriteAsync(compressed);
+            IsClosed = true;
+        }
+        else if (!IsClosed)
+        {
+            var compressed = await compressor.FinishAsync(bytes);
+            
+            byte[] term = [13, 10, 48, 13, 10, 13, 10];
+            await socket.WriteAsync(Encoding.UTF8.GetBytes(compressed.Length.ToString("X") + "\r\n"));
+            await socket.WriteAsync(compressed);
+            await socket.WriteAsync(term);
+
+            if (headers.Count != 0)
+            {
+                string text = "";
+                foreach (var (h, vs) in headers) foreach (var v in vs) text += $"{h}: {v}\r\n";
+                await socket.WriteAsync(Encoding.UTF8.GetBytes(text));
+            }
+
+            byte[] crlf = [13, 10];
+            await socket.WriteAsync(crlf);
+        }
+    }
 
     public void Write(string text) => Write(Encoding.UTF8.GetBytes(text));
-    public void Write(byte[] bytes)
+    public void Write(Span<byte> bytes)
     {
         if (!IsClosed)
         {
@@ -377,7 +439,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
     }
 
     public async Task WriteAsync(string text) => await WriteAsync(Encoding.UTF8.GetBytes(text));
-    public async Task WriteAsync(byte[] bytes)
+    public async Task WriteAsync(Memory<byte> bytes)
     {
         if (!IsClosed)
         {

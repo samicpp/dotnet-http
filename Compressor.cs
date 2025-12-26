@@ -35,13 +35,23 @@ public class Compressor
             _ => throw new NotSupportedException(""),
         };
     }
+    public static Stream Stream(Stream stream, CompressionType compressionType = CompressionType.None, CompressionLevel compressionLevel = CompressionLevel.Optimal)
+    {
+        return compressionType switch
+        {
+            CompressionType.Gzip => new GZipStream(stream, compressionLevel, false),
+            CompressionType.Deflate => new DeflateStream(stream, compressionLevel, false),
+            CompressionType.Brotli => new BrotliStream(stream, compressionLevel, false),
+            _ => throw new NotSupportedException(""),
+        };
+    }
 
     public byte[] Write(ReadOnlySpan<byte> bytes)
     {
         if (finished) throw new Exception("compressor finished");
         if (type == CompressionType.None) return bytes.ToArray();
 
-        var offset = (int)buffer.Length;
+        var offset = buffer.Length;
         stream!.Write(bytes);
         stream.Flush();
 
@@ -55,7 +65,7 @@ public class Compressor
         if (finished) throw new Exception("compressor finished");
         if (type == CompressionType.None) return bytes.ToArray();
 
-        var offset = (int)buffer.Length;
+        var offset = buffer.Length;
         await stream!.WriteAsync(bytes);
         await stream.FlushAsync();
 
@@ -76,6 +86,22 @@ public class Compressor
 
         return buffer.ToArray();
     }
+    public Stream Finish(Stream input)
+    {
+        if (finished) throw new Exception("compressor finished");
+        if (type == CompressionType.None) return input;
+
+        long opos = buffer.Position;
+
+        input.CopyTo(stream!);
+        stream!.Flush();
+        stream!.Dispose();
+        finished = true;
+
+        buffer.Position = opos;
+        
+        return buffer;
+    }
     public async Task<byte[]> FinishAsync(ReadOnlyMemory<byte> bytes)
     {
         if (finished) throw new Exception("compressor finished");
@@ -86,6 +112,22 @@ public class Compressor
         finished = true;
 
         return buffer.ToArray();
+    }
+    public async Task<Stream> FinishAsync(Stream input)
+    {
+        if (finished) throw new Exception("compressor finished");
+        if (type == CompressionType.None) return input;
+
+        long opos = buffer.Position;
+
+        await input.CopyToAsync(stream!);
+        await stream!.FlushAsync();
+        await stream!.DisposeAsync();
+        finished = true;
+
+        buffer.Position = opos;
+
+        return buffer;
     }
 }
 

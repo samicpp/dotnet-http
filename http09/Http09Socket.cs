@@ -78,7 +78,15 @@ public class Http09Socket(IDualSocket socket, EndPoint? endPoint = null) : IDual
 
     public void Close() => Close([]);
     public void Close(string text) => Close(Encoding.UTF8.GetBytes(text));
-    public void Close(byte[] data)
+    public void Close(Span<byte> data)
+    {
+        if (!IsClosed)
+        {
+            socket.Write(data);
+            IsClosed = true;
+        }
+    }
+    public void Close(Stream data)
     {
         if (!IsClosed)
         {
@@ -87,9 +95,17 @@ public class Http09Socket(IDualSocket socket, EndPoint? endPoint = null) : IDual
         }
     }
 
-    public async Task CloseAsync() => await CloseAsync([]);
+    public async Task CloseAsync() => await CloseAsync(Memory<byte>.Empty);
     public async Task CloseAsync(string text) => await CloseAsync(Encoding.UTF8.GetBytes(text));
-    public async Task CloseAsync(byte[] data)
+    public async Task CloseAsync(Memory<byte> data)
+    {
+        if (!IsClosed)
+        {
+            await socket.WriteAsync(data);
+            IsClosed = true;
+        }
+    }
+    public async Task CloseAsync(Stream data)
     {
         if (!IsClosed)
         {
@@ -101,7 +117,7 @@ public class Http09Socket(IDualSocket socket, EndPoint? endPoint = null) : IDual
 
     public void Write() => Write([]);
     public void Write(string text) => Write(Encoding.UTF8.GetBytes(text));
-    public void Write(byte[] data)
+    public void Write(Span<byte> data)
     {
         if (!IsClosed)
         {
@@ -109,9 +125,9 @@ public class Http09Socket(IDualSocket socket, EndPoint? endPoint = null) : IDual
         }
     }
 
-    public async Task WriteAsync() => await WriteAsync([]);
+    public async Task WriteAsync() => await WriteAsync(Memory<byte>.Empty);
     public async Task WriteAsync(string text) => await WriteAsync(Encoding.UTF8.GetBytes(text));
-    public async Task WriteAsync(byte[] data)
+    public async Task WriteAsync(Memory<byte> data)
     {
         if (!IsClosed)
         {
