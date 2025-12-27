@@ -750,18 +750,27 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                 }
                 else
                 {
+                    windowLock.Wait(); windowLocked = true;
+                    window -= min;
+                    status.window -= min;
+                    windowLock.Release(); windowLocked = false;
+                    
                     read = stream.Read(chunk);
+
+                    if (read != min)
+                    {
+                        windowLock.Wait(); windowLocked = true;
+                        window += read - min;
+                        status.window += read - min;
+                        windowLock.Release(); windowLocked = false;
+                    }
+                    
 
                     if (read > 0)
                     {
-                        windowLock.Wait(); windowLocked = true;
-                        window -= read;
-                        status.window -= read;
-                        windowLock.Release(); windowLocked = false;
-
                         toSend.AddRange(Http2Frame.Create(streamID, 0, 0, [], chunk.AsSpan(..read), []));
                     }
-                    else if (end) 
+                    else if (end)
                     {
                         toSend.AddRange(Http2Frame.Create(streamID, 0, 1, [], [], []));
                         Write(toSend.ToArray());
@@ -901,15 +910,24 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
                 }
                 else
                 {
+                    await windowLock.WaitAsync(); windowLocked = true;
+                    window -= min;
+                    status.window -= min;
+                    windowLock.Release(); windowLocked = false;
+                    
                     read = await stream.ReadAsync(chunk);
+
+                    if (read != min)
+                    {
+                        await windowLock.WaitAsync(); windowLocked = true;
+                        window += read - min;
+                        status.window += read - min;
+                        windowLock.Release(); windowLocked = false;
+                    }
+                    
 
                     if (read > 0)
                     {
-                        await windowLock.WaitAsync(); windowLocked = true;
-                        window -= read;
-                        status.window -= read;
-                        windowLock.Release(); windowLocked = false;
-
                         toSend.AddRange(Http2Frame.Create(streamID, 0, 0, [], chunk.AsSpan(..read), []));
                     }
                     else if (end)

@@ -27,7 +27,7 @@ In the future I might make another library that uses this one to support a ready
 - [x] improve compressor
 - [x] support use of `Stream` instead of `byte[]`
 - [x] support trailing headers
-- [ ] support HTTP/1.1 
+- [ ] support HTTP/1.1 pipelining
 - [ ] add comments/documentation
 
 ## Examples
