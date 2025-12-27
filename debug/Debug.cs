@@ -124,6 +124,7 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
 
     public void Close() => Close([]);
     public void Close(string data) => Close(Encoding.UTF8.GetBytes(data));
+    public void Close(byte[] data) => Close(data.AsSpan());
     public void Close(Span<byte> data)
     {
         if (!client.BodyComplete) Console.WriteLine("\x1b[33m[~]\x1b[0m closing connection before fully read client");
@@ -155,10 +156,12 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
 
     public Task CloseAsync() { Close([]); return Task.CompletedTask; }
     public Task CloseAsync(string data) { Close(data); return Task.CompletedTask; }
+    public Task CloseAsync(byte[] data) { Close(data); return Task.CompletedTask; }
     public Task CloseAsync(Memory<byte> data) { Close(data.ToArray()); return Task.CompletedTask; }
     public Task CloseAsync(Stream data) { Close(data); return Task.CompletedTask; }
 
     public void Write(string data) => Write(Encoding.UTF8.GetBytes(data));
+    public void Write(byte[] data) => Write(data.AsSpan());
     public void Write(Span<byte> data)
     {
         if (!client.BodyComplete) Console.WriteLine("\x1b[33m[~]\x1b[0m writing to connection before fully read client");
@@ -174,6 +177,7 @@ public class FakeHttpSocket(HttpClient client) : IDualHttpSocket
     }
 
     public Task WriteAsync(string data) { Write(data); return Task.CompletedTask; }
+    public Task WriteAsync(byte[] data) { Write(data); return Task.CompletedTask; }
     public Task WriteAsync(Memory<byte> data) { Write(data.ToArray()); return Task.CompletedTask; }
 
     public WebSocket.WebSocket WebSocket()

@@ -152,6 +152,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         else conn.SendData(streamID, true, compressor.Finish([]));
     }
     public void Close(string data) => Close(Encoding.UTF8.GetBytes(data));
+    public void Close(byte[] data) => Close(data.AsSpan());
     public void Close(Span<byte> data)
     {
         if (!IsClosed && !HeadSent)
@@ -213,6 +214,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         else await conn.SendDataAsync(streamID, true, await compressor.FinishAsync(ArraySegment<byte>.Empty));
     }
     public async Task CloseAsync(string data) => await CloseAsync(Encoding.UTF8.GetBytes(data));
+    public async Task CloseAsync(byte[] data) => await CloseAsync(data.AsMemory());
     public async Task CloseAsync(Memory<byte> data)
     {
         if (!IsClosed && !HeadSent)
@@ -269,6 +271,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     }
 
     public void Write(string data) => Write(Encoding.UTF8.GetBytes(data));
+    public void Write(byte[] data) => Write(data.AsSpan());
     public void Write(Span<byte> data)
     {
         if (!IsClosed)
@@ -284,6 +287,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     }
 
     public async Task WriteAsync(string data) => await WriteAsync(Encoding.UTF8.GetBytes(data));
+    public async Task WriteAsync(byte[] data) => await WriteAsync(data.AsMemory());
     public async Task WriteAsync(Memory<byte> data)
     {
         if (!IsClosed)

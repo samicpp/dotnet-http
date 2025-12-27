@@ -294,6 +294,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
 
     public void Close() => Close([]);
     public void Close(string text) => Close(Encoding.UTF8.GetBytes(text));
+    public void Close(byte[] data) => Close(data.AsSpan());
     public void Close(Span<byte> bytes)
     {
         if (!IsClosed && !HeadSent)
@@ -358,6 +359,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
 
     public async Task CloseAsync() => await CloseAsync(Memory<byte>.Empty);
     public async Task CloseAsync(string text) => await CloseAsync(Encoding.UTF8.GetBytes(text));
+    public async Task CloseAsync(byte[] data) => await CloseAsync(data.AsMemory());
     public async Task CloseAsync(Memory<byte> bytes)
     {
         if (!IsClosed && !HeadSent)
@@ -421,6 +423,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
     }
 
     public void Write(string text) => Write(Encoding.UTF8.GetBytes(text));
+    public void Write(byte[] data) => Write(data.AsSpan());
     public void Write(Span<byte> bytes)
     {
         if (!IsClosed)
@@ -439,6 +442,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
     }
 
     public async Task WriteAsync(string text) => await WriteAsync(Encoding.UTF8.GetBytes(text));
+    public async Task WriteAsync(byte[] data) => await WriteAsync(data.AsMemory());
     public async Task WriteAsync(Memory<byte> bytes)
     {
         if (!IsClosed)

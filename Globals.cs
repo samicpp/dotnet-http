@@ -26,10 +26,12 @@ public interface ISyncHttpSocket : IHttpSocket, IDisposable
     void Close();
     void Close(string text);
     void Close(Span<byte> bytes);
+    void Close(byte[] bytes);
     void Close(Stream stream);
 
     void Write(string text);
     void Write(Span<byte> bytes);
+    void Write(byte[] bytes);
     // void Write(Stream stream);
 }
 public interface IAsyncHttpSocket: IHttpSocket, IAsyncDisposable
@@ -40,10 +42,12 @@ public interface IAsyncHttpSocket: IHttpSocket, IAsyncDisposable
     Task CloseAsync();
     Task CloseAsync(string text);
     Task CloseAsync(Memory<byte> bytes);
+    Task CloseAsync(byte[] bytes);
     Task CloseAsync(Stream stream);
 
     Task WriteAsync(string text);
     Task WriteAsync(Memory<byte> bytes);
+    Task WriteAsync(byte[] bytes);
     // Task WriteAsync(Stream stream);
 
     // new IAsyncSocket Conn { get; }
