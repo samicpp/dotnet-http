@@ -149,7 +149,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     public void Close()
     {
         if (!HeadSent) SendHead(true);
-        else conn.SendData(streamID, true, []);
+        else conn.SendData(streamID, true, compressor.Finish([]));
     }
     public void Close(string data) => Close(Encoding.UTF8.GetBytes(data));
     public void Close(Span<byte> data)
@@ -210,7 +210,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
     public async Task CloseAsync()
     {
         if (!HeadSent) await SendHeadAsync(true);
-        else await conn.SendDataAsync(streamID, true, []);
+        else await conn.SendDataAsync(streamID, true, await compressor.FinishAsync(ArraySegment<byte>.Empty));
     }
     public async Task CloseAsync(string data) => await CloseAsync(Encoding.UTF8.GetBytes(data));
     public async Task CloseAsync(Memory<byte> data)
