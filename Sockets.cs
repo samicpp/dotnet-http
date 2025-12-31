@@ -16,7 +16,7 @@ public class TlsSocket(SslStream stream) : ADualSocket
     override protected SslStream Stream { get; } = stream;
     override public bool IsSecure { get; } = true;
 }
-public class UnkownSocket(Stream stream) : ADualSocket
+public class UnknownSocket(Stream stream) : ADualSocket
 {
     override protected Stream Stream { get; } = stream;
     override public bool IsSecure { get; } = false; // unknown

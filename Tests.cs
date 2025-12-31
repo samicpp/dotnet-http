@@ -21,11 +21,11 @@ using System.Linq;
 using Samicpp.Http.Quic;
 using Samicpp.Http.Vectors;
 
-public class TcpSocket(NetworkStream stream) : ADualSocket
-{
-    override protected NetworkStream Stream { get { return stream; } }
-    override public bool IsSecure { get { return false; } }
-}
+// public class TcpSocket(NetworkStream stream) : ADualSocket
+// {
+//     override protected NetworkStream Stream { get { return stream; } }
+//     override public bool IsSecure { get { return false; } }
+// }
 
 public class Tests
 {
