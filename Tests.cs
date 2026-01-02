@@ -207,7 +207,7 @@ public class Tests
         HttpClient sourceClient = new();
         sourceClient.Body = "client body here"u8.ToArray().ToList();
         sourceClient.Method = "METHOD";
-        sourceClient.Version = "FakeSocket";
+        sourceClient.Version = Http.HttpVersion.Test;
         sourceClient.Path = "/file.html";
         sourceClient.Host = "fake.localhost:12345";
         sourceClient.Headers = new()
@@ -245,7 +245,7 @@ public class Tests
         HttpClient sourceClient = new();
         sourceClient.Body = "client body here"u8.ToArray().ToList();
         sourceClient.Method = "METHOD";
-        sourceClient.Version = "FakeSocket";
+        sourceClient.Version = Http.HttpVersion.Test;
         sourceClient.Path = "/file.html";
         sourceClient.Host = "fake.localhost:12345";
         sourceClient.Headers = new()

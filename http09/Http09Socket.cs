@@ -1,5 +1,7 @@
 namespace Samicpp.Http.Http09;
 
+using Samicpp.Http;
+
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,7 +16,7 @@ public class Http09Client : HttpClient
     {
         IsValid = true;
         Host = "about:blank";
-        Version = "HTTP/0.9";
+        Version = Http.HttpVersion.Http09;
         BodyComplete = true;
     }
 }

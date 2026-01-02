@@ -64,7 +64,8 @@ public interface IHttpClient
     public string Host { get; }
     public string Method { get; }
     public string Path { get; }
-    public string Version { get; }
+    public HttpVersion Version { get; }
+    public string VersionString { get; }
     public List<byte> Body { get; }
     public bool HeadersComplete { get; }
     public bool BodyComplete { get; }

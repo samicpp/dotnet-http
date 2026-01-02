@@ -4,6 +4,18 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
+
+public enum HttpVersion
+{
+    Test = -3,
+    Unknown = -2,
+    Http09 = -1,
+    Http10 = 0,
+    Http11 = 1,
+    Http2 = 2,
+    Http3 = 3,
+}
+
 public abstract class ADualSocket : IDualSocket
 {
     abstract protected Stream Stream { get; }
@@ -230,7 +242,8 @@ public class HttpClient : IHttpClient
     public string Host { get; set; } = "about:blank";
     public string Method { get; set; } = "NILL";
     public string Path { get; set; } = "/";
-    public string Version { get; set; } = "VER";
+    public HttpVersion Version { get; set; } = HttpVersion.Unknown;
+    public string VersionString { get => Version switch { HttpVersion.Test => "Test", HttpVersion.Unknown => "Unknown", HttpVersion.Http09 => "HTTP/0.9", HttpVersion.Http10 => "HTTP/1.0", HttpVersion.Http11 => "HTTP/1.1", HttpVersion.Http2 => "HTTP/2", HttpVersion.Http3 => "HTTP/3", _ => "Impossible" }; }
     public List<byte> Body { get; set; } = [];
 
     public bool HeadersComplete { get; set; } = false;
@@ -242,5 +255,7 @@ public class HttpException(string? message = null, Exception? source = null) : E
     public readonly Exception? source = source;
     public sealed class ConnectionClosed(string? message) : HttpException(message);
     public sealed class HeadersSent(string? message) : HttpException(message);
+    public sealed class MalformedRequest(string? message) : HttpException(message);
+    public sealed class UnsupportedVersion(string? message) : HttpException(message);
 }
 

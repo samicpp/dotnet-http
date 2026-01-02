@@ -12,7 +12,7 @@ public class Http1Client : HttpClient
 {
     public Http1Client()
     {
-        Version = "HTTP/1.1";
+        // Version = "HTTP/1.1";
     }
     public string ClientVersion = "";
     public bool MpvComplete = false;
@@ -89,17 +89,50 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         return head;
     }
 
-
+    public bool Allow09 = true;
+    public bool Allow10 = true;
+    public bool Allow11 = true;
+    public bool AllowUnknown = true;
     public IHttpClient ReadClient()
     {
         if (!client.MpvComplete)
         {
             var buff = socket.ReadUntil(10);
             var mpv = Encoding.UTF8.GetString([.. buff]).Trim().Split(" ", 3);
+            client.MpvComplete = true;
+            
+            if (mpv.Length < 2) throw new Http1Exception.MalformedRequest("invalid format in first line");
+
             client.Method = mpv[0];
             client.Path = mpv[1];
-            client.ClientVersion = mpv[2];
-            client.MpvComplete = true;
+            if (mpv.Length < 3)
+            {
+                if (!Allow09) throw new Http1Exception.UnsupportedVersion("HTTP/0.9 when not allowed");
+                client.ClientVersion = "";
+                client.Version = Http.HttpVersion.Http09;
+
+                client.HeadersComplete = true;
+                client.BodyComplete = true;
+                client.IsValid = true;
+            }
+            else if (mpv[2].Equals("HTTP/1.0", StringComparison.CurrentCultureIgnoreCase))
+            {
+                if (!Allow10) throw new Http1Exception.UnsupportedVersion("HTTP/1.0 when not allowed");
+                client.ClientVersion = mpv[2];
+                client.Version = Http.HttpVersion.Http10;
+            }
+            else if (mpv[2].Equals("HTTP/1.1", StringComparison.CurrentCultureIgnoreCase))
+            {
+                if (!Allow10) throw new Http1Exception.UnsupportedVersion("HTTP/1.1 when not allowed");
+                client.ClientVersion = mpv[2];
+                client.Version = Http.HttpVersion.Http11;
+            }
+            else
+            {
+                if (!AllowUnknown) throw new Http1Exception.UnsupportedVersion("unknown version");
+                client.ClientVersion = mpv[2];
+                client.Version = Http.HttpVersion.Unknown;
+            }
         }
         else if (!client.HeadersComplete)
         {
@@ -181,11 +214,41 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         if (!client.MpvComplete)
         {
             var buff = await socket.ReadUntilAsync(10);
-            var mpv = Encoding.UTF8.GetString([.. buff]).Split(" ", 3);
+            var mpv = Encoding.UTF8.GetString([.. buff]).Trim().Split(" ", 3);
+            client.MpvComplete = true;
+            
+            if (mpv.Length < 2) throw new Http1Exception.MalformedRequest("invalid format in first line");
+
             client.Method = mpv[0];
             client.Path = mpv[1];
-            client.ClientVersion = mpv[2];
-            client.MpvComplete = true;
+            if (mpv.Length < 3)
+            {
+                if (!Allow09) throw new Http1Exception.UnsupportedVersion("HTTP/0.9 when not allowed");
+                client.ClientVersion = "";
+                client.Version = Http.HttpVersion.Http09;
+
+                client.HeadersComplete = true;
+                client.BodyComplete = true;
+                client.IsValid = true;
+            }
+            else if (mpv[2].Equals("HTTP/1.0", StringComparison.CurrentCultureIgnoreCase))
+            {
+                if (!Allow10) throw new Http1Exception.UnsupportedVersion("HTTP/1.0 when not allowed");
+                client.ClientVersion = mpv[2];
+                client.Version = Http.HttpVersion.Http10;
+            }
+            else if (mpv[2].Equals("HTTP/1.1", StringComparison.CurrentCultureIgnoreCase))
+            {
+                if (!Allow10) throw new Http1Exception.UnsupportedVersion("HTTP/1.1 when not allowed");
+                client.ClientVersion = mpv[2];
+                client.Version = Http.HttpVersion.Http11;
+            }
+            else
+            {
+                if (!AllowUnknown) throw new Http1Exception.UnsupportedVersion("unknown version");
+                client.ClientVersion = mpv[2];
+                client.Version = Http.HttpVersion.Unknown;
+            }
         }
         else if (!client.HeadersComplete)
         {
@@ -268,9 +331,9 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
 
     private void SendHead()
     {
-        if (!HeadSent)
+        if (!HeadSent && client.Version != Http.HttpVersion.Http09)
         {
-            string text = $"HTTP/1.1 {Status} {StatusMessage}\r\n";
+            string text = $"{client.ClientVersion} {Status} {StatusMessage}\r\n";
             foreach (var (h, vs) in headers) foreach (var v in vs) text += $"{h}: {v}\r\n";
             text += "\r\n";
             var buff = Encoding.UTF8.GetBytes(text);
@@ -280,9 +343,9 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
     }
     private async Task SendHeadAsync()
     {
-        if (!HeadSent)
+        if (!HeadSent && client.Version != Http.HttpVersion.Http09)
         {
-            string text = $"HTTP/1.1 {Status} {StatusMessage}\r\n";
+            string text = $"{client.ClientVersion} {Status} {StatusMessage}\r\n";
             foreach (var (h, vs) in headers) foreach (var v in vs) text += $"{h}: {v}\r\n";
             text += "\r\n";
             var buff = Encoding.UTF8.GetBytes(text);
