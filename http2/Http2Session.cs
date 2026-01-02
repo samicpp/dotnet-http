@@ -63,7 +63,8 @@ public class Http2Session(IDualSocket socket, Http2Settings settings, EndPoint? 
     readonly Channel<Http2FrameType> recv = Channel.CreateUnbounded<Http2FrameType>(new() { SingleReader = false, SingleWriter = false });
 
 
-    public static readonly byte[] MAGIC = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
+    // public static readonly byte[] MAGIC = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
+    public static readonly byte[] MAGIC = [80, 82, 73, 32, 42, 32, 72, 84, 84, 80, 47, 50, 46, 48, 13, 10, 13, 10, 83, 77, 13, 10, 13, 10, ];
     public void Init()
     {
         readLock.Wait();
