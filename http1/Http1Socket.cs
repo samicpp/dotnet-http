@@ -27,7 +27,7 @@ public class Http1Exception(string? message, Exception? other) : HttpException(m
 public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualHttpSocket
 {
     public bool IsHttps { get => socket.IsSecure; }
-    protected readonly IDualSocket socket = socket;
+    public readonly IDualSocket socket = socket;
     // IDualSocket IDualHttpSocket.Conn { get => socket; }
     // IAsyncSocket IAsyncHttpSocket.Conn { get => socket; }
     // ISyncSocket ISyncHttpSocket.Conn { get => socket; }
@@ -48,7 +48,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         GC.SuppressFinalize(this);
     }
 
-    private Http1Client client = new();
+    private readonly Http1Client client = new();
     public IHttpClient Client { get => client; }
     public bool IsClosed { get; set; }
     public bool HeadSent { get; set; }
@@ -123,7 +123,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
             }
             else if (mpv[2].Equals("HTTP/1.1", StringComparison.CurrentCultureIgnoreCase))
             {
-                if (!Allow10) throw new Http1Exception.UnsupportedVersion("HTTP/1.1 when not allowed");
+                if (!Allow11) throw new Http1Exception.UnsupportedVersion("HTTP/1.1 when not allowed");
                 client.ClientVersion = mpv[2];
                 client.Version = Http.HttpVersion.Http11;
             }
@@ -239,7 +239,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
             }
             else if (mpv[2].Equals("HTTP/1.1", StringComparison.CurrentCultureIgnoreCase))
             {
-                if (!Allow10) throw new Http1Exception.UnsupportedVersion("HTTP/1.1 when not allowed");
+                if (!Allow11) throw new Http1Exception.UnsupportedVersion("HTTP/1.1 when not allowed");
                 client.ClientVersion = mpv[2];
                 client.Version = Http.HttpVersion.Http11;
             }
