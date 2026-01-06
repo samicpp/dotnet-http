@@ -329,7 +329,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
         return Client;
     }
 
-    private void SendHead()
+    public void SendHead()
     {
         if (!HeadSent && client.Version != Http.HttpVersion.Http09)
         {
@@ -341,7 +341,7 @@ public class Http1Socket(IDualSocket socket, EndPoint? endPoint = null) : IDualH
             HeadSent = true;
         }
     }
-    private async Task SendHeadAsync()
+    public async Task SendHeadAsync()
     {
         if (!HeadSent && client.Version != Http.HttpVersion.Http09)
         {
