@@ -20,7 +20,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
 {
     public readonly Http2Session conn = conn;
     public readonly int streamID = streamID;
-    public readonly List<string> index = [":status", "content-type"];
+    public readonly List<string> indexBlacklist = [];
 
     public bool IsHttps { get => conn.IsSecure; }
 
@@ -124,9 +124,9 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
         if (!HeadSent && !IsClosed)
         {
             List<HeaderEntry> head = [
-                new(":status"u8.ToArray(), Encoding.UTF8.GetBytes(Status.ToString())) { index = index.Contains(":status") },
+                new(":status"u8.ToArray(), Encoding.UTF8.GetBytes(Status.ToString())) { index = !indexBlacklist.Contains(":status") },
             ];
-            foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), index.Contains(header)));
+            foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), !indexBlacklist.Contains(header)));
             conn.SendHeaders(streamID, end, head.ToArray());
             HeadSent = true;
             IsClosed = end;
@@ -139,7 +139,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
             List<HeaderEntry> head = [
                 new(":status"u8.ToArray(), Encoding.UTF8.GetBytes(Status.ToString())),
             ];
-            foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), index.Contains(header)));
+            foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), !indexBlacklist.Contains(header)));
             await conn.SendHeadersAsync(streamID, end, head.ToArray());
             HeadSent = true;
             IsClosed = end;
@@ -173,7 +173,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
             else
             {
                 List<HeaderEntry> head = [];
-                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), index.Contains(header)));
+                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), !indexBlacklist.Contains(header)));
                 conn.SendData(streamID, false, compressed);
                 conn.SendHeaders(streamID, true, head.ToArray());
             }
@@ -200,7 +200,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
             else
             {
                 List<HeaderEntry> head = [];
-                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), index.Contains(header)));
+                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), !indexBlacklist.Contains(header)));
                 conn.SendData(streamID, false, compressed);
                 conn.SendHeaders(streamID, true, head.ToArray());
             }
@@ -235,7 +235,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
             else
             {
                 List<HeaderEntry> head = [];
-                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), index.Contains(header)));
+                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), !indexBlacklist.Contains(header)));
                 await conn.SendDataAsync(streamID, false, compressed);
                 await conn.SendHeadersAsync(streamID, true, head.ToArray());
             }
@@ -262,7 +262,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
             else
             {
                 List<HeaderEntry> head = [];
-                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), index.Contains(header)));
+                foreach (var (header, vs) in headers) foreach (var value in vs) head.Add(new(Encoding.UTF8.GetBytes(header), Encoding.UTF8.GetBytes(value), !indexBlacklist.Contains(header)));
                 await conn.SendDataAsync(streamID, false, compressed);
                 await conn.SendHeadersAsync(streamID, true, head.ToArray());
             }

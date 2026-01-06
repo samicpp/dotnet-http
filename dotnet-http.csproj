@@ -9,7 +9,7 @@
     <AssemblyName>dotnet-http</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- <IsPackable>false</IsPackable> -->
-    <!-- <Version>2.2.1</Version> -->
+    <!-- <Version>2.2.3</Version> -->
   </PropertyGroup>
 
   <PropertyGroup>
