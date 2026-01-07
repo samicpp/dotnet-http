@@ -29,6 +29,7 @@ In the future I might make another library that uses this one to support a ready
 - [x] support trailing headers
 - [ ] support HTTP/1.1 pipelining
 - [ ] add comments/documentation
+- [ ] change client data type from List<byte> to MemoryStream
 
 ## Examples
 
