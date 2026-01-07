@@ -16,9 +16,9 @@ In the future I might make another library that uses this one to support a ready
 - [x] allow both sync and async code
 - [x] implement HTTP/0.9 (utterly useless, for educational purposes only)
 - [x] implement HTTP/1.1
+- [x] implement WebSocket
 - [x] implement HPACK
 - [x] implement HTTP/2
-- [x] implement WebSocket
 - [ ] implement QUIC
 - [ ] implement QPACK
 - [ ] implement HTTP/3
