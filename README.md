@@ -47,14 +47,6 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
-// you have to either implement `Samicpp.Http.IDualSocket` yourself
-// or use the abstract class `Samicpp.Http.ANetSocket`
-public class TcpSocket(NetworkStream stream) : ANetSocket
-{
-    override protected NetworkStream Stream { get { return stream; } }
-    override public bool IsSecure { get { return false; } }
-}
-
 public class Program
 {
     public async Task Main()
@@ -77,7 +69,7 @@ public class Program
 
             var _ = Task.Run(async () =>
             {
-                // first we need to convert it to something we can pass to our class
+                // first we need to convert it to something we can pass to Samicpp.Http.TcpSocket
                 using NetworkStream stream = new(shandler, ownsSocket: true);
 
                 // then we use it to construct `Samicpp.Http.Http1.Http1Socket`
@@ -102,13 +94,29 @@ public class Program
                     foreach (string s in encoding[0].Split(","))
                     {
                         // setting `Samicpp.Http.IDualSocket.Compression` automatically ensures the appropriate compression type is used
-                        // the framework does not verify if client accepts the encoding, this was done on purpose to give the code full control
-                        socket.Compression = s switch
+                        // the framework does not verify if client accepts the encoding, this was done on purpose to give the code full 
+                        // the framework also doesnt set a Content-Encoding header
+                        switch(s)
                         {
-                            "gzip" => Compression.Gzip,
-                            "deflate" => Compression.Deflate,
-                            "br" => Compression.Brotli,
-                            _ => Compression.None,
+                            case "gzip":
+                                socket.Compression = Compression.Gzip;
+                                socket.SetHeader("Content-Encoding", "gzip");
+                                break;
+                            
+                            case "deflate":
+                                socket.Compression = Compression.Deflate;
+                                socket.SetHeader("Content-Encoding", "deflate");
+                                break;
+
+                            case "br":
+                                socket.Compression = Compression.Brotli;
+                                socket.SetHeader("Content-Encoding", "br");
+                                break;
+
+                            default:
+                                socket.Compression = Compression.None;
+                                socket.SetHeader("Content-Encoding", "identity");
+                                break;
                         };
                         if (socket.Compression != Compression.None) break;
                     }
@@ -116,6 +124,7 @@ public class Program
                 }
                 else
                 {
+                    socket.SetHeader("Content-Encoding", "identity");
                     Console.WriteLine("no compression");
                 }
 
@@ -149,14 +158,6 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
-// you have to either implement `Samicpp.Http.IDualSocket` yourself
-// or use the abstract class `Samicpp.Http.ANetSocket`
-public class TcpSocket(NetworkStream stream) : ANetSocket
-{
-    override protected NetworkStream Stream { get { return stream; } }
-    override public bool IsSecure { get { return false; } }
-}
-
 public class Program
 {
     public async Task Main()
@@ -179,14 +180,14 @@ public class Program
 
             var _ = Task.Run(async () =>
             {
-                // first we need to convert it to something we can pass to our class
+                // first we need to convert it to something we can pass to class Samicpp.Http.TcpSocket
                 using NetworkStream stream = new(shandler, ownsSocket: true);
 
                 // then we use it to construct `Samicpp.Http.Http2.Http2Session`
                 using Http2Session h2 = new(new TcpSocket(stream), Http2Settings.Default()); 
                 
 
-                // the library doesnt automatically read and check the preface, so we have to invoke it manually
+                // the framework doesnt automatically read and check the preface, so we have to invoke it manually
                 await h2.InitAsync();
 
                 Console.WriteLine("initialized http2 connection");
@@ -201,16 +202,17 @@ public class Program
                 // we can use this as an indicator for open connections
                 while(h2.goaway == null)
                 {
-                    // first you need to read the http2 frames
-                    List<Http2Frame> frames = await socket.ReadAllAsync();
+                    // first you need to read a http2 frame
+                    // avoid using ReadAllAsync
+                    Http2Frame frame = await socket.ReadAsync();
                     // this reads all available buffer, which can contain incomplete frames
                     // it is recommended you use `Samicpp.Http.Http2.Http2Session.ReadOneAsync` which does wait until it receives a whole frame
                     // you can handle these manually if you want, but that is not necessary
 
-                    // we then pass the frames to the handler, which automatically updates stream states and more
-                    List<int> openedStreams = await socket.HandleAsync(frames);
-                    // this returns a list of stream ids for opened streams 
-                    // this method also has an overload for single frames which returns `int?`
+                    // we then pass the frame to the handler, which automatically updates stream states and more
+                    int? openedStream = await socket.HandleAsync(frame);
+                    // this returns a stream id if a stream was opened 
+                    // this method also has an overload for multiple frames which returns `List<int>`
 
 
                     foreach (int streamID in openedStreams)
