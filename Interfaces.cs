@@ -111,3 +111,4 @@ public interface ISyncSocket : ISocket, IDisposable
     List<byte> ReadUntil(params byte[][] stop);
 }
 public interface IDualSocket : IAsyncSocket, ISyncSocket { }
+

@@ -9,7 +9,8 @@ public enum CompressionType
     None,
     Gzip,
     Deflate,
-    Brotli
+    // Zstd,
+    Brotli,
 }
 
 public class Compressor

@@ -112,6 +112,7 @@ public class Http2Stream(int streamID, Http2Session conn) : IDualHttpSocket
             if (header == ":path") client.Path = value;
             else if (header == ":method") client.Method = value;
             else if (header == ":authority") client.Host = value;
+            else if (header == ":scheme") client.Scheme = value;
             else if (client.Headers.TryGetValue(header, out List<string>? ls)) ls.Add(value);
             else client.Headers[header] = [value];
         }
